@@ -1,0 +1,17 @@
+DESKTOP-QIPV142 – 2025-08-08 12:32:06.648928
+Traceback (most recent call last):
+  File "C:\Users\Joseph\OneDrive - Sebastian Chirino, Engineering, Architecture S.A.U\Licitaciones_MP\5. TESTS\etapa4_joseph.py", line 311, in <module>
+    main()
+    ~~~~^^
+  File "C:\Users\Joseph\OneDrive - Sebastian Chirino, Engineering, Architecture S.A.U\Licitaciones_MP\5. TESTS\etapa4_joseph.py", line 265, in main
+    wb.save(REPORTE_PATH)      # copia física
+    ~~~~~~~^^^^^^^^^^^^^^
+  File "c:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\openpyxl\workbook\workbook.py", line 386, in save
+    save_workbook(self, filename)
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^
+  File "c:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\openpyxl\writer\excel.py", line 291, in save_workbook
+    archive = ZipFile(filename, 'w', ZIP_DEFLATED, allowZip64=True)
+  File "c:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\zipfile\__init__.py", line 1367, in __init__
+    self.fp = io.open(file, filemode)
+              ~~~~~~~^^^^^^^^^^^^^^^^
+PermissionError: [Errno 13] Permission denied: 'C:\\Users\\Joseph\\OneDrive - Sebastian Chirino, Engineering, Architecture S.A.U\\Licitaciones_MP\\4. DATA\\2. OUTPUT\\5. PRESENTACION\\Reporte_Licitaciones.xlsx'
