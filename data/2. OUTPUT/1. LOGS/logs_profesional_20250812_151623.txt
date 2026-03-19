@@ -1,0 +1,13 @@
+2025-08-12 15:16:23 | INFO     | etapa4_profesional | _log_with_context:265 | ═══════════ INICIANDO PROCESAMIENTO DE LICITACIONES (VERSIÓN PROFESIONAL) ═══════════ | MEM:107.1MB | T:0.0s
+2025-08-12 15:16:23 | INFO     | etapa4_profesional | _log_with_context:265 | PASO 1: Cargando datos de entrada... | MEM:107.1MB | T:0.0s
+2025-08-12 15:16:23 | INFO     | etapa4_profesional | _log_with_context:265 | Validación exitosa: 75 registros, 76 columnas | MEM:109.4MB | T:0.1s
+2025-08-12 15:16:23 | INFO     | etapa4_profesional | _log_with_context:265 | PASO 2: Procesando estructura de datos... | MEM:109.4MB | T:0.1s
+2025-08-12 15:16:23 | INFO     | etapa4_profesional | _log_with_context:265 | PASO 3: Cargando estado anterior... | MEM:110.7MB | T:0.2s
+2025-08-12 15:16:23 | INFO     | etapa4_profesional | _log_with_context:265 | PASO 4: Preparando archivo Excel... | MEM:112.2MB | T:0.3s
+2025-08-12 15:16:23 | INFO     | etapa4_profesional | _log_with_context:265 | PASO 5: Procesando licitaciones... | MEM:112.5MB | T:0.3s
+2025-08-12 15:16:24 | INFO     | etapa4_profesional | _log_with_context:265 | PASO 6: Restaurando validaciones... | MEM:112.5MB | T:0.3s
+2025-08-12 15:16:24 | INFO     | etapa4_profesional | _log_with_context:265 | PASO 7: Finalizando archivo... | MEM:112.5MB | T:0.3s
+2025-08-12 15:16:24 | INFO     | etapa4_profesional | _log_with_context:265 | PASO 8: Procesando histórico de licitaciones... | MEM:113.0MB | T:0.4s
+2025-08-12 15:16:24 | INFO     | etapa4_profesional | _log_with_context:265 | 🕐 Procesando licitaciones expiradas para histórico... | MEM:113.0MB | T:0.4s
+2025-08-12 15:16:24 | WARNING  | etapa4_profesional | _log_with_context:265 | No se encontró columna de fecha de cierre, saltando procesamiento de histórico | MEM:113.0MB | T:0.4s
+2025-08-12 15:16:24 | INFO     | etapa4_profesional | _log_with_context:265 | ═══════════ PROCESAMIENTO COMPLETADO EXITOSAMENTE ═══════════ | MEM:113.0MB | T:0.4s

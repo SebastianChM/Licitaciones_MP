@@ -1,0 +1,8 @@
+AUDITORÍA TAXONOMÍA - 2025-08-13_13-40-09
+============================================================
+Campos: 4 | Nuevos: 1 | Similares: 0 | Errores: 0
+
+Nivel 1: 'TEST' (1) Ej: 4525-10-LE25
+Nivel 2: sin nuevos
+Nivel 3: sin nuevos
+Genérico: sin nuevos
