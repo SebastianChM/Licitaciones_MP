@@ -7,12 +7,13 @@ Este script valida todas las funcionalidades del sistema incremental
 import sys
 from pathlib import Path
 
-# Agregar src al path
-sys.path.append(str(Path(__file__).parent / 'src'))
-
+from utils.config import Config
 from sistema_incremental import SistemaAnalisisIncremental
 from reporte_incremental import GeneradorReporteIncremental
 from utils.analizador_incremental import AnalizadorIncremental
+from etapas.etapa0 import Etapa0Descarga
+from etapas.etapa1 import AuditorTaxonomia
+from etapas.etapa2 import FiltradorLicitaciones
 from utils.logger import get_logger
 
 def test_sistema_completo():

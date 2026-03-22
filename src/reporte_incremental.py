@@ -6,10 +6,8 @@ from pathlib import Path
 from datetime import datetime
 import shutil
 from openpyxl import load_workbook
-import sys
 
-sys.path.append(str(Path(__file__).parent.parent))
-from src.utils import Config, ProjectLogger, AnalizadorIncremental, obtener_timestamp
+from utils import Config, ProjectLogger, AnalizadorIncremental, obtener_timestamp
 
 
 class GeneradorReporteIncremental:
@@ -41,7 +39,7 @@ class GeneradorReporteIncremental:
             # Análisis incremental
             analisis = self.analizador.analizar_reporte_incremental(df_nuevas)
             
-            self.logger.info(f"✅ Análisis completado:")
+            self.logger.info("✅ Análisis completado:")
             self.logger.info(f"   • {analisis['estadisticas']['nuevas']} licitaciones nuevas")
             self.logger.info(f"   • {analisis['estadisticas']['existentes']} ya existentes")
             self.logger.info(f"   • {analisis['estadisticas']['vencidas']} vencidas")
@@ -264,7 +262,7 @@ class GeneradorReporteIncremental:
             fecha = pd.to_datetime(fecha_cierre)
             hoy = datetime.now()
             return (fecha - hoy).days
-        except:
+        except Exception:
             return 999
     
     def _encontrar_columna_codigo(self, worksheet) -> int:
