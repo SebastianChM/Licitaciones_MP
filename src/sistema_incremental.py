@@ -1,12 +1,7 @@
 # Sistema de Análisis Incremental y Sugerencias de Filtros
 # Ejecuta análisis completo de cambios y genera recomendaciones
 
-import sys
-from pathlib import Path
-
-sys.path.append(str(Path(__file__).parent.parent))
-from src.utils import Config, AnalizadorIncremental, ProjectLogger
-from src.etapas.etapa1 import AuditorTaxonomia
+from utils import Config, AnalizadorIncremental, ProjectLogger
 import pandas as pd
 import json
 from datetime import datetime
@@ -106,7 +101,7 @@ class SistemaAnalisisIncremental:
         
         # Licitaciones
         lic = resumen['licitaciones']
-        self.logger.info(f"📋 LICITACIONES:")
+        self.logger.info("📋 LICITACIONES:")
         self.logger.info(f"   • Nuevas: {lic['nuevas']} (requieren procesamiento)")
         self.logger.info(f"   • Existentes: {lic['existentes']} (preservar trabajo manual)")
         self.logger.info(f"   • Vencidas: {lic['vencidas']} (mover a histórico)")

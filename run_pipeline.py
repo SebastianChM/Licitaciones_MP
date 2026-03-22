@@ -9,21 +9,20 @@ Fecha: Octubre 2025
 
 __version__ = "3.0.0"
 
-import sys
 from pathlib import Path
 from datetime import datetime
 from typing import Dict, Any, Optional
 
-# Agregar src al path
-sys.path.append(str(Path(__file__).parent))
+from core.context import PipelineContext
+from core.contracts import StageResult
 
-from src.utils import Config, ProjectLogger
-from src.etapas.etapa0 import Etapa0Descarga
-from src.etapas.etapa1 import AuditorTaxonomia
-from src.etapas.etapa2 import FiltradorLicitaciones
-from src.etapas.etapa3 import EnriquecedorAPI
-from src.etapas.etapa4 import GeneradorReporte
-from src.etapas.etapa5 import GeneradorReporteIncremental
+from utils import Config, ProjectLogger
+from etapas.etapa0 import Etapa0Descarga
+from etapas.etapa1 import AuditorTaxonomia
+from etapas.etapa2 import FiltradorLicitaciones
+from etapas.etapa3 import EnriquecedorAPI
+from etapas.etapa4 import GeneradorReporte
+from etapas.etapa5 import GeneradorReporteIncremental
 
 
 class PipelineLicitaciones:
@@ -46,8 +45,10 @@ class PipelineLicitaciones:
             config: Configuracion del proyecto (usa Config por defecto si None)
         """
         self.config = config or Config()
+        self.context = PipelineContext(config=self.config)
         self.logger = ProjectLogger('pipeline_completo', self.config.LOG_DIR)
         
+        # Diccionario transitorio para backward compatibility hasta refactor Fase 2B
         self.resultados = {
             'etapa0': None,
             'etapa1': None,
@@ -60,6 +61,22 @@ class PipelineLicitaciones:
         }
         
         self.tiempo_inicio = datetime.now()
+
+    def _ejecutar_legacy(self, nombre: str, instancia: Any, *args, **kwargs) -> StageResult:
+        """Adapter temporal para envolver etapas legacy en el nuevo sistema de StageResult"""
+        try:
+            res_dict = instancia.ejecutar(*args, **kwargs)
+            exito = res_dict.get('exito', False) if isinstance(res_dict, dict) else True
+            
+            result = StageResult(
+                success=exito,
+                stage_name=nombre,
+                custom_data=res_dict if isinstance(res_dict, dict) else {}
+            )
+            self.context.stage_results[nombre] = result
+            return result
+        except Exception as e:
+            return StageResult(success=False, stage_name=nombre, error_message=str(e))
     
     def ejecutar(
         self,
@@ -83,6 +100,7 @@ class PipelineLicitaciones:
         
         self.logger.section("PIPELINE COMPLETO - LICITACIONES MP", 80)
         self.logger.info(f"Version {__version__}")
+        self.logger.info(f"RUN ID Global: {self.context.run_id}")
         self.logger.info(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
         self.logger.info(f"Etapas a ejecutar: {etapas}")
         self.logger.info("")
@@ -95,13 +113,15 @@ class PipelineLicitaciones:
                 self.logger.section("=" * 80, 80)
                 
                 descargador = Etapa0Descarga()
-                self.resultados['etapa0'] = descargador.ejecutar()
+                stage_res = descargador.run(self.context)
+                self.context.stage_results['etapa0'] = stage_res
+                self.resultados['etapa0'] = stage_res.custom_data
                 
-                if not self.resultados['etapa0']['exito']:
-                    self.logger.warning("⚠️ Etapa 0 falló, continuando con archivo existente")
+                if not stage_res.success:
+                    self.logger.warning(f"⚠️ Etapa 0 falló ({stage_res.error_message}), continuando con archivo existente")
                 else:
                     self.logger.info("\n✅ ETAPA 0 COMPLETADA")
-                    stats0 = self.resultados['etapa0'].get('stats', {})
+                    stats0 = stage_res.custom_data.get('stats', {})
                     if stats0:
                         self.logger.info(f"   * Archivo descargado: {stats0.get('archivo', 'N/A')}")
                         self.logger.info(f"   * Tamaño: {stats0.get('tamano_mb', 0):.2f} MB")
@@ -113,11 +133,13 @@ class PipelineLicitaciones:
                 self.logger.info("EJECUTANDO ETAPA 1 - AUDITORIA DE TAXONOMIA")
                 self.logger.section("=" * 80, 80)
                 
-                auditor = AuditorTaxonomia(self.config)
-                self.resultados['etapa1'] = auditor.ejecutar()
+                auditor = AuditorTaxonomia()
+                stage_res = auditor.run(self.context)
+                self.context.stage_results['etapa1'] = stage_res
+                self.resultados['etapa1'] = stage_res.custom_data
                 
-                if not self.resultados['etapa1']['exito']:
-                    raise Exception("Etapa 1 fallo")
+                if not stage_res.success:
+                    raise Exception(f"Etapa 1 falló: {stage_res.error_message}")
                 
                 self.logger.info("\nETAPA 1 COMPLETADA")
                 stats1 = self.resultados['etapa1'].get('stats', {})
@@ -131,16 +153,23 @@ class PipelineLicitaciones:
                 self.logger.info("EJECUTANDO ETAPA 2 - FILTRADO INTELIGENTE")
                 self.logger.section("=" * 80, 80)
                 
-                filtrador = FiltradorLicitaciones(self.config)
-                self.resultados['etapa2'] = filtrador.ejecutar(archivo_entrada)
+                filtrador = FiltradorLicitaciones()
+                stage_res = filtrador.run(self.context)
+                self.context.stage_results['etapa2'] = stage_res
+                self.resultados['etapa2'] = stage_res.custom_data
                 
-                if not self.resultados['etapa2']['exito']:
-                    raise Exception("Etapa 2 fallo")
+                if not stage_res.success:
+                    raise Exception(f"Etapa 2 falló: {stage_res.error_message}")
                 
                 self.logger.info("\nETAPA 2 COMPLETADA")
-                stats2 = self.resultados['etapa2'].get('stats', {})
-                self.logger.info(f"   * Licitaciones filtradas: {stats2.get('total_filtradas', 0)}")
-                self.logger.info(f"   * Tasa de retención: {stats2.get('tasa_retencion', 0):.2f}%")
+                stats2 = stage_res.custom_data.get('stats', {})
+                self.logger.info(f"   * Licitaciones filtradas: {stats2.get('final', 0)}")
+                
+                try:
+                    ret_rate = (stats2.get('final', 0) / stats2.get('original', 1)) * 100
+                except Exception:
+                    ret_rate = 0
+                self.logger.info(f"   * Tasa de retención: {ret_rate:.2f}%")
                 self.logger.info("")
             
             # ETAPA 3: Enriquecimiento via API
@@ -149,15 +178,24 @@ class PipelineLicitaciones:
                 self.logger.info("EJECUTANDO ETAPA 3 - ENRIQUECIMIENTO API")
                 self.logger.section("=" * 80, 80)
                 
-                enriquecedor = EnriquecedorAPI(self.config)
-                self.resultados['etapa3'] = enriquecedor.ejecutar()
+                enriquecedor = EnriquecedorAPI()
+                stage_res = enriquecedor.run(self.context)
+                self.context.stage_results['etapa3'] = stage_res
+                self.resultados['etapa3'] = stage_res.custom_data
                 
-                if not self.resultados['etapa3']['exito']:
-                    raise Exception("Etapa 3 fallo")
+                if not stage_res.success:
+                    self.logger.error(f"❌ Etapa 3 falló con error crítico: {stage_res.error_message}")
+                    raise Exception(f"Falla fatal de Etapa 3: {stage_res.error_message}")
                 
-                self.logger.info("\nETAPA 3 COMPLETADA")
-                stats3 = self.resultados['etapa3'].get('stats', {})
-                self.logger.info(f"   * Licitaciones enriquecidas: {stats3.get('total_enriquecidas', 0)}")
+                if stage_res.warnings:
+                    self.logger.warning(f"Etapa 3 completada con {len(stage_res.warnings)} warnings: {stage_res.warnings[0]}")
+                
+                self.logger.info("\nETAPA 3 FINALIZADA (Parcial o Total)")
+                stats3 = stage_res.custom_data.get('stats', {})
+                self.logger.info(f"   * Licitaciones procesadas: {stats3.get('total_registros', 0)}")
+                self.logger.info(f"   * Enriquecidas con datos: {stats3.get('enriquecidos_ok', 0)}")
+                self.logger.info(f"   * Errores individuales: {stats3.get('errores_registro', 0)}")
+                self.logger.info(f"   * Errores de etapa: {stats3.get('errores_fatales_etapa', 0)}")
                 self.logger.info("")
             
             # ETAPA 4: Generacion de Reporte
@@ -166,15 +204,20 @@ class PipelineLicitaciones:
                 self.logger.info("EJECUTANDO ETAPA 4 - REPORTE EJECUTIVO")
                 self.logger.section("=" * 80, 80)
                 
-                generador = GeneradorReporte(self.config)
-                self.resultados['etapa4'] = generador.ejecutar()
+                generador = GeneradorReporte()
+                stage_res = generador.run(self.context)
+                self.context.stage_results['etapa4'] = stage_res
+                self.resultados['etapa4'] = stage_res.custom_data
                 
-                if not self.resultados['etapa4']['exito']:
-                    raise Exception("Etapa 4 fallo")
+                if not stage_res.success:
+                    raise Exception(f"Falla fatal de Etapa 4: {stage_res.error_message}")
+                
+                if stage_res.warnings:
+                    self.logger.warning(f"Etapa 4 completada con warnings: {stage_res.warnings[0]}")
                 
                 self.logger.info("\nETAPA 4 COMPLETADA")
-                self.logger.info(f"   * Licitaciones vigentes: {self.resultados['etapa4']['vigentes']}")
-                self.logger.info(f"   * Historico: {self.resultados['etapa4']['vencidas']}")
+                self.logger.info(f"   * Licitaciones vigentes: {self.resultados['etapa4'].get('vigentes', 0)}")
+                self.logger.info(f"   * Historico: {self.resultados['etapa4'].get('vencidas', 0)}")
                 self.logger.info("")
             
             # ETAPA 5: Análisis Incremental
@@ -192,17 +235,17 @@ class PipelineLicitaciones:
                 
                 if not archivo_etapa4:
                     # Buscar el archivo más reciente si no está en resultados
-                    from pathlib import Path
                     dir_presentacion = self.config.OUTPUT_DIR / "5. PRESENTACION"
                     archivos = list(dir_presentacion.glob("Reporte_Licitaciones_*.xlsx"))
                     if archivos:
                         archivo_etapa4 = max(archivos, key=lambda x: x.stat().st_mtime)
                 
                 if archivo_etapa4:
-                    self.resultados['etapa5'] = generador_incremental.ejecutar(archivo_etapa4)
+                    stage_res = self._ejecutar_legacy('etapa5', generador_incremental, archivo_etapa4)
+                    self.resultados['etapa5'] = stage_res.custom_data
                     
-                    if not self.resultados['etapa5']['exito']:
-                        self.logger.warning("Etapa 5 tuvo problemas, pero continuando...")
+                    if not stage_res.success:
+                        self.logger.warning(f"Etapa 5 tuvo problemas: {stage_res.error_message}. Continuando...")
                     
                     self.logger.info("\nETAPA 5 COMPLETADA")
                     stats5 = self.resultados['etapa5']
@@ -238,7 +281,7 @@ class PipelineLicitaciones:
         self.logger.section("RESUMEN FINAL DEL PIPELINE", 80)
         self.logger.section("=" * 80, 80)
         
-        resumen = f"\n"
+        resumen = "\n"
         resumen += "+" + "=" * 62 + "+\n"
         resumen += "|" + " " * 15 + "PIPELINE COMPLETADO EXITOSAMENTE" + " " * 15 + "|\n"
         resumen += "+" + "=" * 62 + "+\n"
@@ -247,33 +290,33 @@ class PipelineLicitaciones:
         # Etapa 1
         if self.resultados['etapa1']:
             e1_stats = self.resultados['etapa1'].get('stats', {})
-            resumen += f"\nETAPA 1 - AUDITORIA:\n"
+            resumen += "\nETAPA 1 - AUDITORIA:\n"
             resumen += f"   * Valores nuevos detectados: {e1_stats.get('nuevos', 0)}\n"
             resumen += f"   * Similares encontrados: {e1_stats.get('similares', 0)}\n"
         
         # Etapa 2
         if self.resultados['etapa2']:
             e2_stats = self.resultados['etapa2'].get('stats', {})
-            resumen += f"\nETAPA 2 - FILTRADO:\n"
+            resumen += "\nETAPA 2 - FILTRADO:\n"
             resumen += f"   * Total filtradas: {e2_stats.get('total_filtradas', 0)}\n"
             resumen += f"   * Tasa retencion: {e2_stats.get('tasa_retencion', 0):.1f}%\n"
         
         # Etapa 3
         if self.resultados['etapa3']:
             e3_stats = self.resultados['etapa3'].get('stats', {})
-            resumen += f"\nETAPA 3 - ENRIQUECIMIENTO:\n"
+            resumen += "\nETAPA 3 - ENRIQUECIMIENTO:\n"
             resumen += f"   * Total enriquecidas: {e3_stats.get('total_enriquecidas', 0)}\n"
         
         # Etapa 4
         if self.resultados['etapa4']:
             e4_stats = self.resultados['etapa4'].get('stats', {})
-            resumen += f"\nETAPA 4 - REPORTE:\n"
+            resumen += "\nETAPA 4 - REPORTE:\n"
             resumen += f"   * Vigentes: {e4_stats.get('vigentes', 0)}\n"
             resumen += f"   * Vencidas: {e4_stats.get('vencidas', 0)}\n"
         
         # Etapa 5
         if self.resultados['etapa5']:
-            resumen += f"\nETAPA 5 - INCREMENTAL:\n"
+            resumen += "\nETAPA 5 - INCREMENTAL:\n"
             resumen += f"   * Nuevas agregadas: {self.resultados['etapa5'].get('licitaciones_nuevas', 0)}\n"
             resumen += f"   * Existentes actualizadas: {self.resultados['etapa5'].get('licitaciones_existentes', 0)}\n"
             resumen += f"   * Vencidas movidas: {self.resultados['etapa5'].get('licitaciones_vencidas', 0)}\n"
@@ -306,6 +349,11 @@ def main():
         '--no-descargar',
         action='store_true',
         help='Omitir descarga automática (Etapa 0)'
+    )
+    parser.add_argument(
+        '--standalone',
+        action='store_true',
+        help='Permitir que las etapas lean archivos directo del disco (fallback) sin etapa anterior'
     )
     parser.add_argument(
         '--version',

@@ -3,8 +3,8 @@
 
 import pandas as pd
 from pathlib import Path
-from typing import Dict, List, Set, Tuple, Optional
-from datetime import datetime, timedelta
+from typing import Dict, List, Set, Optional
+from datetime import datetime
 import json
 
 from .config import Config
@@ -132,7 +132,7 @@ class AnalizadorIncremental:
                     if col_name in df_audit.columns:
                         valores = df_audit[col_name].dropna().astype(str)
                         taxonomia[tax_key].update(normalizar_texto(v) for v in valores if v not in ['nan', 'None'])
-            except:
+            except Exception:
                 pass
             
             return taxonomia

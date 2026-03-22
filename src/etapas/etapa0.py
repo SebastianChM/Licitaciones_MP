@@ -6,18 +6,18 @@ Autor: Sebastian Chirino
 Versión: 3.0.0
 """
 
-import requests
+import shutil
 from pathlib import Path
 from datetime import datetime
-from typing import Dict, Any
-import shutil
 
-from src.utils.config import Config
-from src.utils.logger import ProjectLogger
+from utils.config import Config
+from utils.http import HTTPClient
+from core.contracts import BaseStage, StageResult
+from core.context import PipelineContext
 
 __version__ = "3.0.0"
 
-class Etapa0Descarga:
+class Etapa0Descarga(BaseStage):
     """Descarga automática del archivo de licitaciones desde Mercado Público"""
     
     # URL directa de descarga del portal (PUEDE CAMBIAR - verificar en el portal)
@@ -27,8 +27,7 @@ class Etapa0Descarga:
     API_URL = "https://api.mercadopublico.cl/servicios/v1/publico/licitaciones.json"
     
     def __init__(self, usar_api: bool = False):
-        self.logger = ProjectLogger("etapa0", Config.LOG_DIR)
-        self.config = Config
+        super().__init__()
         self.usar_api = usar_api  # Si True, usa API en lugar de descarga directa
         self.stats = {
             'inicio': datetime.now(),
@@ -37,11 +36,21 @@ class Etapa0Descarga:
             'tiempo': None,
             'total_licitaciones': 0
         }
+
+    @property
+    def name(self) -> str:
+        return "descarga"
+
+    def validate_inputs(self, context: PipelineContext) -> bool:
+        return True # Etapa 0 no tiene inputs mandatorios del pipeline
     
-    def ejecutar(self) -> Dict[str, Any]:
+    def run(self, context: PipelineContext) -> StageResult:
         """Ejecuta la descarga del archivo de licitaciones"""
+        self.bind(context)
+        self.http = HTTPClient(self.logger, timeout=60)
+        
         self.logger.section("ETAPA 0 - DESCARGA AUTOMÁTICA", 80)
-        self.logger.info(f"[>>] Iniciando descarga - v{__version__}")
+        self.logger.info(f"[>>] Iniciando descarga - v{__version__} | RunID: {context.run_id}")
         self.logger.info(f"[DATE] {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
         
         try:
@@ -63,23 +72,33 @@ class Etapa0Descarga:
             self.logger.section("RESUMEN", 80)
             self._imprimir_resumen()
             
-            return {
-                'exito': True,
-                'stats': {
-                    'archivo': ruta_final.name,
-                    'tamano_mb': self.stats['tamano_mb'],
-                    'tiempo_descarga': str(self.stats['tiempo'])
-                },
-                'ruta_archivo': str(ruta_final)
-            }
+            # Paso 5: Registrar artefacto
+            context.add_artifact('etapa0_output', ruta_final)
+            context.set_metric('etapa0_tamano_mb', self.stats['tamano_mb'])
+            
+            return StageResult(
+                success=True,
+                stage_name=self.name,
+                files_produced=[ruta_final],
+                metrics_produced={'tamano_mb': self.stats['tamano_mb'], 'tiempo_descarga': str(self.stats['tiempo'])},
+                custom_data={
+                    'stats': {
+                        'archivo': ruta_final.name,
+                        'tamano_mb': self.stats['tamano_mb'],
+                        'tiempo_descarga': str(self.stats['tiempo'])
+                    },
+                    'ruta_archivo': str(ruta_final)
+                }
+            )
             
         except Exception as e:
             self.logger.error(f"Error en descarga: {e}")
-            return {
-                'exito': False,
-                'error': str(e),
-                'stats': self.stats
-            }
+            return StageResult(
+                success=False,
+                stage_name=self.name,
+                error_message=str(e),
+                custom_data={'stats': self.stats}
+            )
     
     def _validar_conexion(self):
         """Valida la conexión con el servidor de Mercado Público"""
@@ -97,24 +116,19 @@ class Etapa0Descarga:
             }
             
             # Hacer HEAD request con headers de navegador
-            response = requests.head(self.URL_DESCARGA, headers=headers, timeout=10, allow_redirects=True)
+            response = self.http.head(self.URL_DESCARGA, headers=headers, timeout=10, allow_redirects=True)
             
             # Aceptar 200 o 302 (redirect)
-            if response.status_code in [200, 302]:
-                self.logger.info("[OK] Servidor disponible")
+            self.logger.info("[OK] Servidor disponible")
+            
+            # Obtener tamaño del archivo si está disponible
+            if 'Content-Length' in response.headers:
+                tamano_bytes = int(response.headers['Content-Length'])
+                tamano_mb = tamano_bytes / (1024 * 1024)
+                self.logger.info(f"[INFO] Tamaño archivo: {tamano_mb:.2f} MB")
                 
-                # Obtener tamaño del archivo si está disponible
-                if 'Content-Length' in response.headers:
-                    tamano_bytes = int(response.headers['Content-Length'])
-                    tamano_mb = tamano_bytes / (1024 * 1024)
-                    self.logger.info(f"[INFO] Tamaño archivo: {tamano_mb:.2f} MB")
-            else:
-                self.logger.warning(f"[!] Servidor respondió con código {response.status_code}, intentando descarga directa...")
-                
-        except requests.exceptions.Timeout:
-            raise Exception("Timeout al conectar con Mercado Público")
-        except requests.exceptions.ConnectionError:
-            raise Exception("No se pudo conectar con Mercado Público. Verifica tu conexión a internet.")
+        except Exception as e:
+            raise Exception(f"No se pudo conectar o timeout con Mercado Público. Error: {str(e)}")
     
     def _descargar_archivo(self) -> Path:
         """Descarga el archivo de licitaciones"""
@@ -141,9 +155,8 @@ class Etapa0Descarga:
                 'Connection': 'keep-alive'
             }
             
-            # Descargar con stream para mostrar progreso
-            response = requests.get(self.URL_DESCARGA, headers=headers, stream=True, timeout=60, allow_redirects=True)
-            response.raise_for_status()
+            # Descargar con stream para mostrar progreso (usando HTTPClient encapsulado)
+            response = self.http.get(self.URL_DESCARGA, headers=headers, stream=True, timeout=60, allow_redirects=True)
             
             # Obtener tamaño total
             total_size = int(response.headers.get('content-length', 0))
@@ -168,10 +181,10 @@ class Etapa0Descarga:
             
             return ruta_temp
             
-        except requests.exceptions.RequestException as e:
+        except Exception as e:
             if ruta_temp.exists():
                 ruta_temp.unlink()
-            raise Exception(f"Error al descargar archivo: {e}")
+            raise Exception(f"Error al descargar archivo HTTP: {e}")
     
     def _mover_a_input(self, ruta_origen: Path) -> Path:
         """Mueve el archivo descargado a la carpeta INPUT y gestiona histórico"""
@@ -221,7 +234,7 @@ class Etapa0Descarga:
                 self.logger.info(f"[HISTORICO] Guardando versión anterior: {ruta_historico.name}")
                 shutil.copy2(ruta_destino, ruta_historico)
             else:
-                self.logger.info(f"[HISTORICO] Ya existe versión de hoy, omitiendo backup")
+                self.logger.info("[HISTORICO] Ya existe versión de hoy, omitiendo backup")
         
         # Limpiar históricos antiguos (mayores a 30 días)
         self._limpiar_historico(historico_dir, dias_max=30)
@@ -323,16 +336,19 @@ class Etapa0Descarga:
 
 def main():
     """Función principal para ejecutar Etapa 0 de forma independiente"""
-    etapa = Etapa0Descarga()
-    resultado = etapa.ejecutar()
+    from core.context import PipelineContext
     
-    if resultado['exito']:
+    context = PipelineContext(config=Config())
+    etapa = Etapa0Descarga()
+    resultado = etapa.run(context)
+    
+    if resultado.success:
         print("\n✅ ETAPA 0 COMPLETADA")
-        print(f"   * Archivo descargado: {resultado['stats']['archivo']}")
-        print(f"   * Tamaño: {resultado['stats']['tamano_mb']:.2f} MB")
+        print(f"   * Archivo descargado: {resultado.custom_data['stats']['archivo']}")
+        print(f"   * Tamaño: {resultado.custom_data['stats']['tamano_mb']:.2f} MB")
     else:
         print("\n❌ ETAPA 0 FALLÓ")
-        print(f"   * Error: {resultado.get('error', 'Desconocido')}")
+        print(f"   * Error: {resultado.error_message}")
         exit(1)
 
 

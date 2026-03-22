@@ -5,7 +5,6 @@ import logging
 import sys
 from pathlib import Path
 from datetime import datetime
-from typing import Optional, Dict
 from collections import defaultdict
 
 
@@ -59,7 +58,7 @@ class ProjectLogger:
         self.logger.addHandler(console_handler)
         
         # Metricas
-        self.metrics = defaultdict(int)
+        self.metrics: dict[str, int] = defaultdict(int)
         self.start_time = datetime.now()
         
         # Log inicial
@@ -135,7 +134,7 @@ class ProjectLogger:
         summary += "+" + "=" * 62 + "+\n"
         summary += "|" + "RESUMEN DE EJECUCION".center(62) + "|\n"
         summary += "+" + "=" * 62 + "+\n"
-        summary += f"\nMetricas de Logging:\n"
+        summary += "\nMetricas de Logging:\n"
         summary += f"   - DEBUG:    {self.metrics.get('debug', 0)}\n"
         summary += f"   - INFO:     {self.metrics.get('info', 0)}\n"
         summary += f"   - WARNING:  {self.metrics.get('warning', 0)}\n"

@@ -10,17 +10,18 @@ agrega solo las licitaciones realmente nuevas.
 import pandas as pd
 from pathlib import Path
 from datetime import datetime
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, Optional
 from openpyxl import load_workbook, Workbook
 from openpyxl.styles import PatternFill, Font, Alignment
 from openpyxl.formatting.rule import FormulaRule
 from openpyxl.utils import get_column_letter
 
-from src.utils import Config, ProjectLogger
-from src.utils.analizador_incremental import AnalizadorIncremental
+from utils.analizador_incremental import AnalizadorIncremental
+from core.contracts import BaseStage, StageResult
+from core.context import PipelineContext
 
 
-class GeneradorReporteIncremental:
+class GeneradorReporteIncremental(BaseStage):
     """
     Etapa 5: Genera reporte incremental preservando trabajo manual de compañeros.
     
@@ -31,39 +32,55 @@ class GeneradorReporteIncremental:
     - Actualiza campos críticos (días para cierre)
     - Mueve licitaciones vencidas a hoja separada
     """
-
-class GeneradorReporteIncremental:
-    """Genera reportes incrementales preservando trabajo manual"""
     
-    def __init__(self, config_dir: Path):
-        """Inicializa la etapa de reporte incremental"""
-        from ..utils.config import Config
-        self.config = Config()
-        self.logger = ProjectLogger('etapa5_incremental', self.config.LOG_DIR)
+    def __init__(self):
+        super().__init__()
         self.analizador = AnalizadorIncremental()
         
-        # Directorios
-        self.dir_presentacion_original = self.config.PRESENTACION_ORIGINAL_DIR
-        self.dir_presentacion_incremental = self.config.PRESENTACION_INCREMENTAL_DIR
-        self.dir_presentacion_incremental.mkdir(parents=True, exist_ok=True)
+    @property
+    def name(self) -> str:
+        return "incremental"
         
-        self.logger.info("Etapa 5 - Generador Reporte Incremental inicializado")
-    
-    def ejecutar(self, archivo_reporte_nuevo: Path) -> Dict:
-        """
-        Ejecuta la etapa 5: genera reporte incremental.
+    def validate_inputs(self, context: PipelineContext) -> bool:
+        permite_fallback = context.flags.get('allow_fallback', False)
+        archivo_entrada = context.get_artifact('etapa4_output')
         
-        Args:
-            archivo_reporte_nuevo: Archivo generado por Etapa 4
+        if not archivo_entrada:
+            if not permite_fallback:
+                raise ValueError("Modo pipeline: Fallo al iniciar Etapa 5. Falta artefacto 'etapa4_output'.")
             
-        Returns:
-            dict: Resultado de la ejecución con métricas
-        """
+            # Buscar el archivo más reciente de etapa 4 en caso de fallback
+            archivos = list(context.config.PRESENTACION_ORIGINAL_DIR.glob("Reporte_Licitaciones_*.xlsx"))
+            if not archivos:
+                raise FileNotFoundError(f"No hay archivo base de fallback en {context.config.PRESENTACION_ORIGINAL_DIR}")
+            archivo_entrada = max(archivos, key=lambda f: f.stat().st_mtime)
+            
+        if not archivo_entrada.exists():
+            raise FileNotFoundError(f"El archivo de entrada no existe físicamente: {archivo_entrada}")
+            
         try:
+            pd.read_excel(archivo_entrada, engine='openpyxl', nrows=1)
+        except Exception as e:
+            raise ValueError(f"El archivo base aportado a Etapa 5 es corrupto o no es Excel: {str(e)}")
+            
+        return True
+
+    def run(self, context: PipelineContext) -> StageResult:
+        self.bind(context)
+        
+        try:
+            self.validate_inputs(context)
             self.logger.section("ETAPA 5: REPORTE INCREMENTAL")
             inicio = datetime.now()
             
-            # 1. Cargar datos nuevos
+            self.dir_presentacion_incremental = self.config.PRESENTACION_INCREMENTAL_DIR
+            self.dir_presentacion_incremental.mkdir(parents=True, exist_ok=True)
+            
+            archivo_reporte_nuevo = context.get_artifact('etapa4_output')
+            if not archivo_reporte_nuevo:
+                archivos = list(self.config.PRESENTACION_ORIGINAL_DIR.glob("Reporte_Licitaciones_*.xlsx"))
+                archivo_reporte_nuevo = max(archivos, key=lambda f: f.stat().st_mtime)
+                
             self.logger.info(f"📂 Cargando reporte nuevo: {archivo_reporte_nuevo.name}")
             datos_nuevos = pd.read_excel(archivo_reporte_nuevo)
             self.logger.info(f"📊 Datos cargados: {len(datos_nuevos)} licitaciones")
@@ -84,25 +101,29 @@ class GeneradorReporteIncremental:
             # 4. Guardar sugerencias para PIVOT
             self._guardar_sugerencias_pivot(analisis)
             
-            tiempo_total = datetime.now() - inicio
             
-            resultado.update({
-                'exito': True,
-                'tiempo_ejecucion': tiempo_total,
-                'analisis_cambios': analisis,
-                'timestamp': datetime.now().isoformat()
-            })
+            rutas_generadas = []
+            if 'archivo_generado' in resultado and resultado['archivo_generado']:
+                rutas_generadas.append(resultado['archivo_generado'])
+                context.add_artifact('etapa5_output', resultado['archivo_generado'])
+            
+            tiempo_total = datetime.now() - inicio
+            resultado['tiempo_ejecucion'] = str(tiempo_total)
             
             self.logger.info(f"✅ Etapa 5 completada en {tiempo_total}")
-            return resultado
+            return StageResult(
+                success=True,
+                stage_name=self.name,
+                files_produced=rutas_generadas,
+                metrics_produced=resultado,
+                custom_data={'detalles': resultado}
+            )
             
         except Exception as e:
-            self.logger.error(f"❌ Error en Etapa 5: {e}", exc_info=True)
-            return {
-                'exito': False,
-                'error': str(e),
-                'timestamp': datetime.now().isoformat()
-            }
+            self.logger.error(f"❌ Error crítico en Etapa 5: {e}", exc_info=True)
+            return StageResult(success=False, stage_name=self.name, error_message=str(e))
+        finally:
+            self.logger.finalize()
     
     def _encontrar_reporte_incremental_anterior(self) -> Optional[Path]:
         """Encuentra el reporte incremental más reciente"""
@@ -284,7 +305,7 @@ class GeneradorReporteIncremental:
             fecha = pd.to_datetime(fecha_cierre)
             hoy = datetime.now()
             return (fecha - hoy).days
-        except:
+        except Exception:
             return 999
     
     def _guardar_formateado(self, df: pd.DataFrame, ruta: Path, hoja: str):

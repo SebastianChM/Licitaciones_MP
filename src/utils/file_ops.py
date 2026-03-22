@@ -8,9 +8,8 @@ Versión: 3.0.0
 import shutil
 from pathlib import Path
 from datetime import datetime
-from typing import Optional, List, Dict, Any
+from typing import Optional, List
 import pandas as pd
-import openpyxl
 from openpyxl import load_workbook
 from .logger import ProjectLogger
 from .text_processing import normalizar_texto
@@ -149,7 +148,7 @@ def encontrar_fila_encabezado(
         # Si no encuentra nada, asumir fila 0
         return 0
     
-    except Exception as e:
+    except Exception:
         return 0
 
 
@@ -265,7 +264,7 @@ def guardar_excel_con_formato(
                     try:
                         if cell.value:
                             max_length = max(max_length, len(str(cell.value)))
-                    except:
+                    except Exception:
                         pass
                 
                 adjusted_width = min(max_length + 2, 50)  # Máximo 50
@@ -286,7 +285,7 @@ def guardar_excel_con_formato(
         wb.save(ruta)
         return True
     
-    except Exception as e:
+    except Exception:
         return False
 
 
@@ -326,7 +325,6 @@ def limpiar_outputs_antiguos(dias: int = 30, mantener_ultimos: int = 5):
         dias: Eliminar archivos más antiguos que N días
         mantener_ultimos: Mantener al menos N archivos más recientes
     """
-    from .config import Config
     
     archivos = listar_archivos_output()
     

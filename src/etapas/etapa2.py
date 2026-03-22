@@ -2,49 +2,74 @@
 
 import pandas as pd
 from pathlib import Path
-from typing import Dict, Tuple, Optional
+from typing import Tuple
 from datetime import datetime
-import sys
-
-sys.path.append(str(Path(__file__).parent.parent.parent))
-from src.utils import (Config, ProjectLogger, normalizar_texto, contiene_palabras_clave,
+from utils import (normalizar_texto, contiene_palabras_clave,
                        validar_archivo_excel, encontrar_columna, guardar_excel_con_formato,
                        obtener_timestamp, leer_excel_con_header_dinamico)
+from core.contracts import BaseStage, StageResult
+from core.context import PipelineContext
 
-
-class FiltradorLicitaciones:
-    
-    def __init__(self, config: Optional[Config] = None):
-        self.config = config or Config()
-        self.logger = ProjectLogger('etapa2', self.config.LOG_DIR)
+class FiltradorLicitaciones(BaseStage):
+    def __init__(self):
+        super().__init__()
         self.stats = {'original': 0, 'incluidas': 0, 'excluidas': 0, 'bypass': 0, 
                      'final': 0, 'inicio': datetime.now()}
         self.filtros = None
-    
-    def ejecutar(self, archivo_entrada: Optional[Path] = None):
+
+    @property
+    def name(self) -> str:
+        return "filtrado"
+
+    def validate_inputs(self, context: PipelineContext) -> bool:
+        permite_fallback = context.flags.get('allow_fallback', False)
+        archivo_entrada = context.get_artifact('etapa0_output')
+        
+        if not archivo_entrada:
+            if not permite_fallback:
+                raise ValueError("Modo pipeline: Fallo al iniciar Etapa 2. Falta artefacto 'etapa0_output'.")
+            # Fallback explícito para stand-alone
+            archivo_entrada = context.config.LICITACIONES_MP
+            
+        if not archivo_entrada or not archivo_entrada.exists():
+            raise FileNotFoundError(f"El archivo de entrada no existe físicamente: {archivo_entrada}")
+            
+        return True
+    def run(self, context: PipelineContext) -> StageResult:
+        self.bind(context)
         self.logger.section("ETAPA 2 - FILTRADO INTELIGENTE", 80)
-        self.logger.info(f"[>>] Iniciando filtrado - Versión 3.0.0")
+        self.logger.info(f"[>>] Iniciando filtrado - Versión 3.0.0 | RunID: {context.run_id}")
         self.logger.info(f"[DATE] Fecha: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
         
         try:
+            self.validate_inputs(context)
+            archivo_entrada = context.get_artifact('etapa0_output') or self.config.LICITACIONES_MP
+            
             self._validar_prerequisitos()
-            archivo_entrada = archivo_entrada or self._obtener_archivo_entrada()
             
             df = self._cargar_licitaciones(archivo_entrada)
             self.stats['original'] = len(df)
             
             self.filtros = self._cargar_filtros()
             df_filtradas, df_excluidas = self._aplicar_filtrado(df)
-            self._generar_outputs(df_filtradas, df_excluidas)
+            rutas_generadas = self._generar_outputs(df_filtradas, df_excluidas)
+            if rutas_generadas and len(rutas_generadas) > 0:
+                context.add_artifact('etapa2_output', rutas_generadas[0])
             
             self.stats['tiempo'] = datetime.now() - self.stats['inicio']
             self.logger.section("RESUMEN DE FILTRADO", 80)
             self._imprimir_resumen()
             
-            return {'exito': True, 'total_filtradas': len(df_filtradas)}
+            return StageResult(
+                success=True,
+                stage_name=self.name,
+                files_produced=rutas_generadas,
+                metrics_produced=self.stats,
+                custom_data={'stats': self.stats}
+            )
         except Exception as e:
             self.logger.error(f"Error: {e}")
-            raise
+            return StageResult(success=False, stage_name=self.name, error_message=str(e), custom_data={'stats': self.stats})
         finally:
             self.logger.finalize()
     
@@ -55,15 +80,19 @@ class FiltradorLicitaciones:
             raise FileNotFoundError(f"PIVOT_MAESTRO: {mensaje}")
         self.logger.info("[OK] PIVOT_MAESTRO: OK")
     
-    def _obtener_archivo_entrada(self) -> Path:
-        if self.config.LICITACIONES_MP.exists():
-            self.logger.info(f"[IN] Usando: {self.config.LICITACIONES_MP.name}")
-            return self.config.LICITACIONES_MP
-        raise FileNotFoundError("No se encontró archivo de entrada")
-    
     def _cargar_licitaciones(self, ruta: Path) -> pd.DataFrame:
         self.logger.subsection("Cargando licitaciones")
         df = leer_excel_con_header_dinamico(ruta, columna_referencia="Nivel 1")
+        
+        columnas_requeridas = [
+            "Nombre Adquisición", "Descripción", "Nivel 1", "Nivel 2", "Nivel 3",
+            "Genérico", "Organismo", "Tipo Adquisición", "Descripción del producto/servicio"
+        ]
+        
+        faltantes = [col for col in columnas_requeridas if not encontrar_columna(df, col)]
+        if faltantes:
+            raise ValueError(f"El archivo origen no posee las columnas mínimas requeridas: {faltantes}")
+            
         self.logger.info(f"[OK] {len(df):,} licitaciones, {len(df.columns)} columnas")
         return df
     
@@ -173,20 +202,25 @@ class FiltradorLicitaciones:
         self.logger.info(f"🔄 Bypass: {len(df_bypass):,}")
         return df_bypass
     
-    def _generar_outputs(self, df_filtradas: pd.DataFrame, df_excluidas: pd.DataFrame):
+    def _generar_outputs(self, df_filtradas: pd.DataFrame, df_excluidas: pd.DataFrame) -> list[Path]:
         self.logger.subsection("Generando archivos")
         timestamp = obtener_timestamp()
+        archivos = []
         
         cols_remove = [col for col in df_filtradas.columns if '(norm)' in col]
         
         ruta = self.config.FILTRADO_DIR / f"Licitaciones_Filtradas_{timestamp}.xlsx"
         guardar_excel_con_formato(df_filtradas.drop(columns=cols_remove), ruta, nombre_hoja="Filtradas")
         self.logger.info(f"[OK] {ruta.name}")
+        archivos.append(ruta)
         
         if len(df_excluidas) > 0:
             ruta_exc = self.config.FILTRADO_DIR / f"Licitaciones_Excluidas_{timestamp}.xlsx"
             guardar_excel_con_formato(df_excluidas.drop(columns=cols_remove), ruta_exc, nombre_hoja="Excluidas")
             self.logger.info(f"[OK] {ruta_exc.name}")
+            archivos.append(ruta_exc)
+        
+        return archivos
     
     def _imprimir_resumen(self):
         s = self.stats
@@ -214,15 +248,22 @@ class FiltradorLicitaciones:
 
 
 def main():
+    from core.context import PipelineContext
+    from utils.config import Config
     try:
+        context = PipelineContext(config=Config())
+        context.flags['standalone_mode'] = True
         filtrador = FiltradorLicitaciones()
-        resultado = filtrador.ejecutar()
-        print("\n✅ ETAPA 2 COMPLETADA")
-        print(f"   * Licitaciones filtradas: {resultado['total_filtradas']:,}")
-        print(f"   * Tasa de retención: {(resultado['total_filtradas']/filtrador.stats['original']*100):.2f}%")
-        return 0
+        resultado = filtrador.run(context)
+        if resultado.success:
+            print("\n✅ ETAPA 2 COMPLETADA")
+            print(f"   * Licitaciones filtradas: {resultado.metrics_produced['final']:,}")
+            print(f"   * Tasa de retención: {(resultado.metrics_produced['final']/resultado.metrics_produced['original']*100):.2f}%")
+            return 0
+        print(f"\n❌ ERROR: {resultado.error_message}")
+        return 1
     except Exception as e:
-        print(f"\n❌ ERROR: {e}")
+        print(f"\n❌ ERROR CRITICO: {e}")
         return 1
 
 

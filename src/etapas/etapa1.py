@@ -4,23 +4,29 @@ __version__ = "3.0.0"
 import pandas as pd
 import openpyxl
 from pathlib import Path
-from typing import Dict, List, Tuple, Optional, Any
+from typing import Dict, List, Tuple
 from datetime import datetime
-import sys
-sys.path.append(str(Path(__file__).parent.parent.parent))
-from src.utils import (Config, ProjectLogger, normalizar_texto, calcular_similitud, 
-                      encontrar_similares, validar_archivo_excel, encontrar_columna,
+from utils import (normalizar_texto, encontrar_similares, validar_archivo_excel, encontrar_columna,
                       leer_excel_con_header_dinamico, obtener_timestamp)
+from core.contracts import BaseStage, StageResult
+from core.context import PipelineContext
 
-class AuditorTaxonomia:
-    def __init__(self, config: Optional[Config] = None):
-        self.config = config or Config()
-        self.logger = ProjectLogger('etapa1', self.config.LOG_DIR)
-        self.umbral_alerta = self.config.ETAPA1_UMBRAL_ALERTA
-        self.detectar_similares = self.config.ETAPA1_DETECTAR_SIMILARES
-        self.umbral_similitud = self.config.ETAPA1_SIMILITUD_THRESHOLD
-        self._cargar_parametros_pivot()
+class AuditorTaxonomia(BaseStage):
+    def __init__(self):
+        super().__init__()
         self.stats = {'total_mp': 0, 'nuevos': 0, 'similares': 0, 'campos': 0, 'inicio': datetime.now()}
+        self.umbral_alerta = 3
+        self.detectar_similares = True
+        self.umbral_similitud = 0.85
+
+    @property
+    def name(self) -> str:
+        return "auditoria"
+
+    def validate_inputs(self, context: PipelineContext) -> bool:
+        if not context.get_artifact('etapa0_output') and not context.config.LICITACIONES_MP.exists():
+            return False
+        return True
     
     def _cargar_parametros_pivot(self):
         try:
@@ -34,17 +40,28 @@ class AuditorTaxonomia:
         except Exception as e:
             self.logger.warning(f"No se cargaron parámetros PIVOT: {e}")
     
-    def ejecutar(self) -> Dict[str, Any]:
+    def run(self, context: PipelineContext) -> StageResult:
+        self.bind(context)
+        self.umbral_alerta = self.config.ETAPA1_UMBRAL_ALERTA
+        self.detectar_similares = self.config.ETAPA1_DETECTAR_SIMILARES
+        self.umbral_similitud = self.config.ETAPA1_SIMILITUD_THRESHOLD
+        self._cargar_parametros_pivot()
+        
         self.logger.section("ETAPA 1 - AUDITORÍA DE TAXONOMÍA", 80)
-        self.logger.info(f"[>>] Iniciando v{__version__} | {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        self.logger.info(f"[>>] Iniciando v{__version__} | RunID: {context.run_id}")
         
         try:
-            self._validar_prerequisitos()
-            df_mp, valores_pivot = self._cargar_datos()
+            archivo_input = context.get_artifact('etapa0_output') or self.config.LICITACIONES_MP
+            
+            self._validar_prerequisitos(archivo_input)
+            df_mp, valores_pivot = self._cargar_datos(archivo_input)
             hallazgos = self._procesar_campos(df_mp, valores_pivot)
             
+            archivos_producidos = []
             if hallazgos['nuevos'] or hallazgos['similares']:
                 ruta = self._generar_reporte(hallazgos)
+                archivos_producidos.append(ruta)
+                context.add_artifact('etapa1_reporte', ruta)
                 self.logger.info(f"[OK] Reporte: {ruta.name}")
             else:
                 self.logger.info("[OK] Sin hallazgos (todos los valores existen)")
@@ -53,25 +70,31 @@ class AuditorTaxonomia:
             self.logger.section("RESUMEN", 80)
             self._imprimir_resumen()
             
-            return {'exito': True, 'stats': self.stats, 'hallazgos': hallazgos}
+            return StageResult(
+                success=True,
+                stage_name=self.name,
+                files_produced=archivos_producidos,
+                metrics_produced=self.stats,
+                custom_data={'stats': self.stats, 'hallazgos': hallazgos}
+            )
         except Exception as e:
             self.logger.error(f"[X] Error: {e}", exc_info=True)
-            raise
+            return StageResult(success=False, stage_name=self.name, error_message=str(e), custom_data={'stats': self.stats})
         finally:
             self.logger.finalize()
     
-    def _validar_prerequisitos(self):
+    def _validar_prerequisitos(self, archivo_input: Path):
         self.logger.subsection("Validando prerequisitos")
         for nombre, ruta in [('PIVOT_MAESTRO', self.config.PIVOT_MAESTRO),
-                             ('Licitaciones MP', self.config.LICITACIONES_MP)]:
+                             ('Licitaciones MP', archivo_input)]:
             valido, msg = validar_archivo_excel(ruta, debe_existir=True)
             if not valido:
                 raise FileNotFoundError(f"{nombre}: {msg}")
             self.logger.info(f"[OK] {nombre}")
     
-    def _cargar_datos(self) -> Tuple[pd.DataFrame, Dict[str, set]]:
+    def _cargar_datos(self, archivo_input: Path) -> Tuple[pd.DataFrame, Dict[str, set]]:
         self.logger.subsection("Cargando datos")
-        df_mp = leer_excel_con_header_dinamico(self.config.LICITACIONES_MP, columna_referencia="Nivel 1")
+        df_mp = leer_excel_con_header_dinamico(archivo_input, columna_referencia="Nivel 1")
         self.stats['total_mp'] = len(df_mp)
         self.logger.info(f"[IN] {len(df_mp):,} licitaciones MP")
         
@@ -216,15 +239,20 @@ class AuditorTaxonomia:
 """)
 
 def main():
+    from core.context import PipelineContext
+    from utils.config import Config
+    
     try:
+        context = PipelineContext(config=Config())
         auditor = AuditorTaxonomia()
-        res = auditor.ejecutar()
-        if res['exito']:
+        res = auditor.run(context)
+        if res.success:
             print("\n[OK] ETAPA 1 COMPLETADA")
             return 0
+        print(f"\n[X] ERROR: {res.error_message}")
         return 1
     except Exception as e:
-        print(f"\n[X] ERROR: {e}")
+        print(f"\n[X] ERROR CRÍTICO: {e}")
         return 1
 
 if __name__ == "__main__":

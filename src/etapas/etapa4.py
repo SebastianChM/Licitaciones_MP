@@ -1,21 +1,21 @@
 __version__ = "3.0.0"
 
 import re
-import requests
 import pytz
 import pandas as pd
 from pathlib import Path
-from typing import Dict, Optional, Any, Tuple
+from typing import Tuple
 from datetime import datetime
 from openpyxl import load_workbook
 from openpyxl.styles import PatternFill, Font, Alignment
 from openpyxl.formatting.rule import FormulaRule
 from openpyxl.utils import get_column_letter
-import sys
-sys.path.append(str(Path(__file__).parent.parent.parent))
-from src.utils import Config, ProjectLogger, obtener_timestamp
+from utils import Config, obtener_timestamp
+from utils.http import HTTPClient
+from core.contracts import BaseStage, StageResult
+from core.context import PipelineContext
 
-class GeneradorReporte:
+class GeneradorReporte(BaseStage):
     REGEX_NUMERO = r'[^\d.]'
     
     COLUMNAS = ["LINK", "Numero Adquisición", "Nombre", "Descripción", "Región", "Cliente (Organismo)",
@@ -48,38 +48,84 @@ class GeneradorReporte:
         "Trazabilidad": ["Trazabilidad Filtro", "Trazabilidad", "Motivo Inclusión"]
     }
     
-    def __init__(self, config: Optional[Config] = None):
-        self.config = config or Config()
-        self.logger = ProjectLogger('etapa4', self.config.LOG_DIR)
-        self.valor_utm = self.config.ETAPA4_VALOR_UTM
-        self.valor_usd = 1000
-        self.dias_gracia = self.config.ETAPA4_DIAS_GRACIA_HISTORICO
+    def __init__(self):
+        super().__init__()
+        self.valor_utm = 0.0
+        self.valor_usd = 1000.0
+        self.dias_gracia = 0
         self.tz_chile = pytz.timezone('America/Santiago')
         self.stats = {'total': 0, 'vigentes': 0, 'vencidas': 0, 'utm': 0, 'usd': 0, 'errores': 0}
-    
-    def ejecutar(self, archivo_entrada: Optional[Path] = None) -> Dict[str, Any]:
+
+    @property
+    def name(self) -> str:
+        return "reporte"
+
+    def validate_inputs(self, context: PipelineContext) -> bool:
+        permite_fallback = context.flags.get('allow_fallback', False)
+        archivo_entrada = context.get_artifact('etapa3_output')
+        
+        if not archivo_entrada:
+            if not permite_fallback:
+                raise ValueError("Modo pipeline: Fallo al iniciar Etapa 4. Falta artefacto 'etapa3_output'.")
+            archivo_entrada = self._obtener_archivo(context)
+            
+        if not archivo_entrada or not archivo_entrada.exists():
+            raise FileNotFoundError(f"El archivo de entrada no existe físicamente: {archivo_entrada}")
+            
+        # Validación mínima del formato de Excel para prevenir lecturas ciegas
+        try:
+            pd.read_excel(archivo_entrada, engine='openpyxl', nrows=1)
+        except Exception as e:
+            raise ValueError(f"El archivo base proporcionado no es un Excel válido o está corrupto: {str(e)}")
+            
+        return True
+    def run(self, context: PipelineContext) -> StageResult:
+        self.bind(context)
+        self.http = HTTPClient(self.logger, max_retries=2, timeout=10)
         self.logger.section("ETAPA 4 - GENERACIÓN DE REPORTE EJECUTIVO", 80)
-        self.logger.info(f"[>>] Iniciando generación incremental - v{__version__}")
+        self.logger.info(f"[>>] Iniciando generación - v{__version__} | RunID: {context.run_id}")
         
         try:
+            self.valor_utm = self.config.ETAPA4_VALOR_UTM
+            self.dias_gracia = self.config.ETAPA4_DIAS_GRACIA_HISTORICO
+            self.validate_inputs(context)
+            
             self._actualizar_tasas()
-            archivo = archivo_entrada or self._obtener_archivo()
+            archivo = context.get_artifact('etapa3_output') or self._obtener_archivo(context)
             df_raw = pd.read_excel(archivo, engine='openpyxl')
+            
             self.stats['total'] = len(df_raw)
             self.logger.info(f"[IN] {len(df_raw):,} licitaciones cargadas")
             
-            # Procesamiento estándar
             df_procesado = self._preparar_reporte(df_raw)
             df_vigentes, df_vencidas = self._separar(df_procesado)
-            self._generar_excel(df_vigentes, df_vencidas)
+            rutas_generadas = self._generar_excel(df_vigentes, df_vencidas)
+            
+            if not rutas_generadas:
+                raise ValueError("No se generó el Excel final. Abortando salida exitosa.")
+                
+            context.add_artifact('etapa4_output', rutas_generadas[0])
+            if len(rutas_generadas) > 1:
+                context.add_artifact('etapa4_historico', rutas_generadas[1])
             
             self.logger.section("RESUMEN", 80)
             self._imprimir_resumen()
             
-            return {'exito': True, 'stats': self.stats, 'vigentes': len(df_vigentes), 'vencidas': len(df_vencidas)}
+            warnings = []
+            if self.stats['errores'] > 0:
+                warnings.append(f"Hubo {self.stats['errores']} conversiones de divisa o limpieza numéricas fallidas.")
+                
+            return StageResult(
+                success=True,
+                stage_name=self.name,
+                files_produced=rutas_generadas,
+                metrics_produced=self.stats,
+                custom_data={'stats': self.stats, 'vigentes': len(df_vigentes), 'vencidas': len(df_vencidas)},
+                warnings=warnings
+            )
         except Exception as e:
-            self.logger.error(f"[X] Error: {e}", exc_info=True)
-            raise
+            self.logger.error(f"[X] Error crítico Etapa 4: {e}", exc_info=True)
+            return StageResult(success=False, stage_name=self.name, error_message=str(e), metrics_produced=self.stats)
         finally:
             self.logger.finalize()
     
@@ -102,22 +148,22 @@ class GeneradorReporte:
             self.logger.warning(f"[!] USD error: {e}")
     
     def _obtener_utm(self) -> float:
-        r = requests.get("https://api.cmfchile.cl/api-sbifv3/recursos_api/utm",
-                        params={'apikey': '3638141efe952b31a7e3422d2811bb15916bb794', 'formato': 'json'}, timeout=10)
-        r.raise_for_status()
+        apikey = self.config.cmf_api_key
+        if not apikey:
+            raise ValueError("CMF API key no configurada (LICIT_CMF_API_KEY). No se puede actualizar UTM de la API.")
+        r = self.http.get("https://api.cmfchile.cl/api-sbifv3/recursos_api/utm",
+                        params={'apikey': apikey, 'formato': 'json'})
         return float(r.json().get('Valor', 0))
     
     def _obtener_usd(self) -> float:
-        r = requests.get("https://api.exchangerate.host/latest", params={'base': 'USD', 'symbols': 'CLP'}, timeout=10)
-        r.raise_for_status()
+        r = self.http.get("https://api.exchangerate.host/latest", params={'base': 'USD', 'symbols': 'CLP'})
         return float(r.json()['rates']['CLP'])
     
-    def _obtener_archivo(self) -> Path:
-        archivos = list(self.config.ENRIQUECIDO_DIR.glob("Licitaciones_Enriquecidas_*.xlsx"))
+    def _obtener_archivo(self, context: PipelineContext) -> Path:
+        archivos = list(context.config.ENRIQUECIDO_DIR.glob("Licitaciones_Enriquecidas_*.xlsx"))
         if not archivos:
-            raise FileNotFoundError(f"No hay archivo en {self.config.ENRIQUECIDO_DIR}")
+            raise FileNotFoundError(f"No hay archivo de base en fallback en {context.config.ENRIQUECIDO_DIR}")
         archivos = sorted(archivos, key=lambda f: f.stat().st_mtime, reverse=True)
-        self.logger.info(f"[IN] {archivos[0].name}")
         return archivos[0]
     
     def _preparar_reporte(self, df_raw: pd.DataFrame) -> pd.DataFrame:
@@ -146,6 +192,9 @@ class GeneradorReporte:
                 continue
             
             col_fuente = next((c for c in self.SINONIMOS.get(col, [col]) if c in df_raw.columns), None)
+            if col == "Numero Adquisición" and not col_fuente:
+                raise ValueError(f"Falta columna base mandatoria para el reporteutivo: {self.SINONIMOS['Numero Adquisición']}")
+                
             data[col] = df_raw[col_fuente].astype(str) if col_fuente else ""
         
         df = pd.DataFrame(data)
@@ -215,18 +264,22 @@ class GeneradorReporte:
         self.logger.info(f"📦 Vencidas: {len(vencidas):,}")
         return vigentes, vencidas
     
-    def _generar_excel(self, df_vigentes: pd.DataFrame, df_vencidas: pd.DataFrame):
+    def _generar_excel(self, df_vigentes: pd.DataFrame, df_vencidas: pd.DataFrame) -> list[Path]:
         self.logger.subsection("Generando Excel")
         ts = obtener_timestamp()
         
         ruta_principal = self.config.PRESENTACION_ORIGINAL_DIR / f"Reporte_Licitaciones_{ts}.xlsx"
         self._guardar_formateado(df_vigentes, ruta_principal, "Licitaciones")
         self.logger.info(f"[OK] {ruta_principal.name}")
+        rutas_generadas = [ruta_principal]
         
         if len(df_vencidas) > 0:
             ruta_historico = self.config.HISTORICO_DIR / f"Historico_Licitaciones_{ts}.xlsx"
             self._guardar_formateado(df_vencidas, ruta_historico, "Histórico")
             self.logger.info(f"📦 {ruta_historico.name}")
+            rutas_generadas.append(ruta_historico)
+            
+        return rutas_generadas
     
     def _guardar_formateado(self, df: pd.DataFrame, ruta: Path, hoja: str):
         """Guarda Excel con formato mejorado: anchos automáticos, links clickeables, colores"""
@@ -366,15 +419,18 @@ class GeneradorReporte:
 
 def main():
     try:
+        context = PipelineContext(config=Config())
+        context.flags['allow_fallback'] = True
         gen = GeneradorReporte()
-        res = gen.ejecutar()
-        if res['exito']:
+        res = gen.run(context)
+        if res.success:
             print("\n[OK] ETAPA 4 COMPLETADA")
-            print(f"[#] {res['vigentes']:,} vigentes | 📦 {res['vencidas']:,} vencidas")
+            print(f"[#] {res.custom_data.get('vigentes')} vigentes | 📦 {res.custom_data.get('vencidas')} vencidas")
             return 0
+        print(f"\n[X] ERROR FATAL ETAPA 4: {res.error_message}")
         return 1
     except Exception as e:
-        print(f"\n[X] ERROR: {e}")
+        print(f"\n[X] ERROR DE CAPA SUPERIOR: {e}")
         return 1
 
 if __name__ == "__main__":
