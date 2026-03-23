@@ -5,6 +5,7 @@ Versión: 3.0.0
 
 __version__ = "3.0.0"
 
+import time
 import pandas as pd
 from pathlib import Path
 from datetime import datetime
@@ -53,14 +54,18 @@ class EnriquecedorAPI(BaseStage):
         return True
     
     def _cargar_api_key(self) -> str:
+        """Carga API Key priorizando variable de entorno, con fallback a PIVOT_MAESTRO."""
+        if self.config.mercado_publico_ticket:
+            self.logger.info("[OK] API Key cargada desde variable de entorno (LICIT_MERCADO_PUBLICO_TICKET)")
+            return self.config.mercado_publico_ticket
         try:
             params = self.config.cargar_desde_pivot()
             api_key = params.get('API Key', '')
             if api_key:
-                self.logger.info("[OK] API Key cargada desde PIVOT")
+                self.logger.info("[!] API Key cargada desde PIVOT (migrar a LICIT_MERCADO_PUBLICO_TICKET en .env)")
             return api_key
         except Exception as e:
-            self.logger.warning(f"[!] Error cargando API Key: {e}")
+            self.logger.warning(f"[!] No se pudo cargar API Key del PIVOT: {e}")
             return ""
     
     def run(self, context: PipelineContext) -> StageResult:
@@ -139,6 +144,22 @@ class EnriquecedorAPI(BaseStage):
         concatenado = "".join(df[col_codigo].astype(str).tolist())
         return hashlib.sha256(concatenado.encode('utf-8')).hexdigest()
 
+    def _limpiar_checkpoints_antiguos(self, checkpoint_dir: Path) -> None:
+        """Elimina checkpoints más antiguos que ETAPA3_CHECKPOINT_RETENTION_DAYS días."""
+        retention = self.config.ETAPA3_CHECKPOINT_RETENTION_DAYS
+        ahora = time.time()
+        cutoff = ahora - retention * 86400
+        eliminados = 0
+        for cp in checkpoint_dir.glob("e3_checkpoint_*.jsonl"):
+            try:
+                if cp.stat().st_mtime < cutoff:
+                    cp.unlink()
+                    eliminados += 1
+            except OSError:
+                pass
+        if eliminados:
+            self.logger.info(f"[♻️] {eliminados} checkpoint(s) antiguo(s) eliminado(s) (>{retention}d)")
+
     def _enriquecer_licitaciones(self, df: pd.DataFrame) -> pd.DataFrame:
         self.logger.subsection("Enriqueciendo licitaciones vía API")
         
@@ -148,6 +169,7 @@ class EnriquecedorAPI(BaseStage):
         
         checkpoint_dir = self.config.BASE_DIR / 'temp' / 'checkpoints'
         checkpoint_dir.mkdir(parents=True, exist_ok=True)
+        self._limpiar_checkpoints_antiguos(checkpoint_dir)
         checkpoint_file = checkpoint_dir / f"e3_checkpoint_{dataset_hash}.jsonl"
         
         resultados_cache = {}
@@ -170,8 +192,7 @@ class EnriquecedorAPI(BaseStage):
                 resultados_cache = {}
                 
         resultados = []
-        import time
-        
+
         with open(checkpoint_file, 'a', encoding='utf-8') as cp_file:
             for idx, row in df.iterrows():
                 if (idx + 1) % 10 == 0 or idx == 0 or idx == total - 1:
@@ -196,7 +217,7 @@ class EnriquecedorAPI(BaseStage):
                     time.sleep(self.delay_segundos)
                 
                 resultados.append({**row.to_dict(), **datos_api})
-                
+
                 if datos_api.get('_api_disponible', True):
                     self.estadisticas['enriquecidos_ok'] += 1
                 else:

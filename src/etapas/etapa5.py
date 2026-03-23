@@ -7,6 +7,7 @@ preservando colores, filtros y ordenamientos aplicados por compañeros mientras
 agrega solo las licitaciones realmente nuevas.
 """
 
+import shutil
 import pandas as pd
 from pathlib import Path
 from datetime import datetime
@@ -33,6 +34,11 @@ class GeneradorReporteIncremental(BaseStage):
     - Mueve licitaciones vencidas a hoja separada
     """
     
+    # Nombres canónicos de columnas del reporte (generados por Etapa 4)
+    NUMERO_ADQ_COL = 'Numero Adquisición'
+    REGION_COL = 'Región'
+    FECHA_CIERRE_COL = 'Fecha Cierre Licitación'
+
     def __init__(self):
         super().__init__()
         self.analizador = AnalizadorIncremental()
@@ -138,29 +144,73 @@ class GeneradorReporteIncremental(BaseStage):
         return None
     
     def _actualizar_reporte_existente(self, datos_nuevos: pd.DataFrame, reporte_anterior: Path) -> Dict:
-        """Actualiza reporte existente preservando trabajo manual"""
-        
-        self.logger.info("🔄 Actualizando reporte existente...")
-        
-        # Realizar análisis incremental
+        """Actualiza reporte existente preservando trabajo manual a nivel de celda.
+
+        Copia el archivo anterior (conservando colores y formatos manuales), luego:
+        - Actualiza 'Días para cierre' de filas existentes
+        - Mueve vencidas a hoja 'Vencidas'
+        - Agrega filas nuevas al final
+        """
+        self.logger.info("🔄 Actualizando reporte existente (preservando formato manual)...")
+
         analisis = self.analizador.analizar_reporte_incremental(datos_nuevos, reporte_anterior)
-        
         licitaciones_nuevas = analisis['licitaciones_nuevas']
-        licitaciones_existentes = analisis['licitaciones_existentes'] 
+        licitaciones_existentes = analisis['licitaciones_existentes']
         licitaciones_vencidas = analisis['licitaciones_vencidas']
-        
+
         self.logger.info(f"📊 Análisis: {len(licitaciones_nuevas)} nuevas, "
-                        f"{len(licitaciones_existentes)} existentes, "
-                        f"{len(licitaciones_vencidas)} vencidas")
-        
-        # Generar nombre de archivo incremental
+                         f"{len(licitaciones_existentes)} existentes, "
+                         f"{len(licitaciones_vencidas)} vencidas")
+
         timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         archivo_incremental = self.dir_presentacion_incremental / f"Reporte_Incremental_{timestamp}.xlsx"
-        
-        df_todos_datos = pd.concat([licitaciones_nuevas, licitaciones_existentes], ignore_index=True)
-        
-        # Guardar Excel con formato mejorado
-        self._guardar_formateado(df_todos_datos, archivo_incremental, "Vigentes")
+
+        # Copiar archivo anterior para preservar TODOS los formatos manuales (colores, filtros, etc.)
+        shutil.copy2(reporte_anterior, archivo_incremental)
+
+        wb = load_workbook(archivo_incremental)
+        ws = wb['Vigentes'] if 'Vigentes' in wb.sheetnames else wb.active
+
+        # Construir mapa: nombre_columna -> índice 1-based
+        header_map = {
+            str(ws.cell(1, c).value): c
+            for c in range(1, ws.max_column + 1)
+            if ws.cell(1, c).value is not None
+        }
+        col_codigo = header_map.get(self.NUMERO_ADQ_COL)
+        col_dias = header_map.get('Días para cierre')
+
+        # 1. Actualizar 'Días para cierre' de licitaciones existentes sin tocar su formato
+        if col_codigo and col_dias and not datos_nuevos.empty:
+            col_codigo_df = next(
+                (c for c in [self.NUMERO_ADQ_COL, 'Código Externo', 'CodigoExterno']
+                 if c in datos_nuevos.columns), None
+            )
+            if col_codigo_df and 'Días para cierre' in datos_nuevos.columns:
+                dias_map = dict(zip(
+                    datos_nuevos[col_codigo_df].astype(str),
+                    datos_nuevos['Días para cierre']
+                ))
+                for row in ws.iter_rows(min_row=2):
+                    codigo_val = row[col_codigo - 1].value
+                    if codigo_val and str(codigo_val) in dias_map:
+                        row[col_dias - 1].value = dias_map[str(codigo_val)]
+
+        # 2. Mover vencidas a hoja separada
+        if not licitaciones_vencidas.empty and col_codigo:
+            self._mover_licitaciones_vencidas(wb, ws, licitaciones_vencidas, col_codigo)
+
+        # 3. Agregar licitaciones nuevas al final preservando estructura de columnas
+        if not licitaciones_nuevas.empty:
+            cols_ws = [ws.cell(1, c).value for c in range(1, ws.max_column + 1)]
+            for _, row_data in licitaciones_nuevas.iterrows():
+                last_row = ws.max_row + 1
+                for col_idx, col_name in enumerate(cols_ws, 1):
+                    if col_name and col_name in row_data.index:
+                        ws.cell(last_row, col_idx).value = row_data.get(col_name, '')
+            self.logger.info(f"➕ {len(licitaciones_nuevas)} licitaciones nuevas agregadas")
+
+        wb.save(archivo_incremental)
         self.logger.info(f"💾 Reporte incremental guardado: {archivo_incremental.name}")
 
         return {
@@ -190,73 +240,43 @@ class GeneradorReporteIncremental(BaseStage):
             'licitaciones_vencidas': 0,
             'tipo': 'inicial'
         }
-    
-    def _actualizar_hoja_vigentes(self, workbook: Workbook, nuevas: pd.DataFrame, existentes: pd.DataFrame):
-        """Actualiza la hoja de vigentes preservando formato"""
-        
-        if 'Vigentes' not in workbook.sheetnames:
-            workbook.create_sheet('Vigentes')
-        
-        ws = workbook['Vigentes']
-        
-        # Agregar nuevas licitaciones al final
-        if len(nuevas) > 0:
-            ultima_fila = ws.max_row
-            for idx, row in nuevas.iterrows():
-                fila_destino = ultima_fila + 1
-                self._insertar_fila_licitacion(ws, fila_destino, row)
-                ultima_fila += 1
-            
-            self.logger.info(f"➕ {len(nuevas)} licitaciones nuevas agregadas")
-        
-        # Actualizar existentes (solo campos críticos)
-        if len(existentes) > 0:
-            self._actualizar_licitaciones_existentes(ws, existentes)
-            self.logger.info(f"🔄 {len(existentes)} licitaciones existentes actualizadas")
-    
-    def _insertar_fila_licitacion(self, worksheet, fila: int, data: pd.Series):
-        """Inserta una fila de licitación con formato estándar"""
-        
-        # Mapeo básico de columnas (ajustar según estructura real)
-        mapeo = {
-            1: self._generar_link_licitacion(data.get(self.NUMERO_ADQ_COL, '')),
-            2: data.get(self.NUMERO_ADQ_COL, ''),
-            3: data.get('Nombre', data.get('API_Nombre', '')),
-            4: data.get('Descripción', data.get('API_Descripcion', '')),
-            5: data.get(self.REGION_COL, data.get('API_RegionUnidad', '')),
-            6: data.get('Organismo', data.get('OrganismoNombre', '')),
-            7: data.get(self.FECHA_CIERRE_COL, data.get('API_FechaCierre', '')),
-            8: self._calcular_dias_cierre(data.get(self.FECHA_CIERRE_COL, data.get('API_FechaCierre', ''))),
-            9: data.get('Monto', data.get('API_Monto', '')),
-            10: data.get('Nivel 1', ''),
-            11: data.get('Nivel 2', ''),
-            12: data.get('Nivel 3', '')
-        }
-        
-        for col, valor in mapeo.items():
-            worksheet.cell(row=fila, column=col, value=valor)
-    
-    def _actualizar_licitaciones_existentes(self, worksheet, existentes: pd.DataFrame):
-        """Actualiza solo campos críticos de licitaciones existentes"""
-        
-        # Buscar licitaciones por código y actualizar días para cierre
-        for idx, row in existentes.iterrows():
-            codigo = row.get('Numero Adquisición', '')
-            if codigo:
-                fila = self._encontrar_fila_por_codigo(worksheet, codigo)
-                if fila:
-                    # Actualizar días para cierre (columna 8)
-                    dias = self._calcular_dias_cierre(row.get('Fecha Cierre', row.get('API_FechaCierre', '')))
-                    worksheet.cell(row=fila, column=8, value=dias)
-    
-    def _mover_licitaciones_vencidas(self, workbook: Workbook, vencidas: pd.DataFrame):
-        """Mueve licitaciones vencidas a hoja separada"""
-        
-        if 'Vencidas' not in workbook.sheetnames:
-            workbook.create_sheet('Vencidas')
-        
-        # Implementación simplificada: agregar a hoja vencidas
-        self.logger.info(f"📦 {len(vencidas)} licitaciones movidas a hoja 'Vencidas'")
+
+    def _mover_licitaciones_vencidas(
+        self, wb: Workbook, ws_vigentes, vencidas: pd.DataFrame, col_codigo_idx: int
+    ):
+        """Copia licitaciones vencidas a hoja 'Vencidas' y las elimina de 'Vigentes'."""
+        if 'Vencidas' not in wb.sheetnames:
+            wb.create_sheet('Vencidas')
+        ws_vencidas = wb['Vencidas']
+
+        # Copiar encabezado si la hoja está vacía
+        if ws_vencidas.max_row == 1 and ws_vencidas.cell(1, 1).value is None:
+            for c in range(1, ws_vigentes.max_column + 1):
+                ws_vencidas.cell(1, c).value = ws_vigentes.cell(1, c).value
+
+        col_codigo_name = next(
+            (c for c in [self.NUMERO_ADQ_COL, 'Código Externo', 'CodigoExterno']
+             if c in vencidas.columns), None
+        )
+        if not col_codigo_name:
+            self.logger.warning("⚠️ No se identificó columna de código para mover vencidas")
+            return
+
+        codigos_vencidos = set(vencidas[col_codigo_name].astype(str))
+        rows_to_delete = []
+
+        for row in ws_vigentes.iter_rows(min_row=2):
+            val = row[col_codigo_idx - 1].value
+            if val and str(val) in codigos_vencidos:
+                new_row = ws_vencidas.max_row + 1
+                for col_idx, cell in enumerate(row, 1):
+                    ws_vencidas.cell(new_row, col_idx).value = cell.value
+                rows_to_delete.append(row[0].row)
+
+        for row_idx in reversed(rows_to_delete):
+            ws_vigentes.delete_rows(row_idx)
+
+        self.logger.info(f"📦 {len(rows_to_delete)} licitaciones movidas a hoja 'Vencidas'")
     
     def _generar_analisis_cambios(self, datos_nuevos: pd.DataFrame, reporte_anterior: Optional[Path]) -> Dict:
         """Genera análisis completo de cambios"""
@@ -294,7 +314,7 @@ class GeneradorReporteIncremental(BaseStage):
     def _generar_link_licitacion(self, codigo: str) -> str:
         """Genera link a licitación en Mercado Público"""
         if codigo:
-            return f"https://www.mercadopublico.cl/Procurement/Modules/RFB/DetailsAcquisition.aspx?qs={codigo}"
+            return f"https://www.mercadopublico.cl/Procurement/Modules/RFB/DetailsAcquisition.aspx?idlicitacion={codigo}"
         return ""
     
     def _calcular_dias_cierre(self, fecha_cierre) -> int:

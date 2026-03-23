@@ -27,7 +27,9 @@ env/
 .venv
 
 # IDE
-.vscode/
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
 .idea/
 *.swp
 *.swo
@@ -57,17 +59,25 @@ config.local.py
 ~$*.xlsx
 ~$*.xls
 
-# Outputs generados (opcional - descomentar si no quieres versionar)
-# 4. DATA/2. OUTPUT/OUTPUT_*/
-# 4. DATA/2. OUTPUT/2. HALLAZGOS/*.xlsx
-# 4. DATA/2. OUTPUT/3. FILTRADO/*.xlsx
-# 4. DATA/2. OUTPUT/4. ENRIQUECIDO/*.xlsx
-# 4. DATA/2. OUTPUT/5. PRESENTACION/*.xlsx
+# Outputs generados (no versionar datos procesados)
+data/2. OUTPUT/2. HALLAZGOS/*.xlsx
+data/2. OUTPUT/3. FILTRADO/*.xlsx
+data/2. OUTPUT/4. ENRIQUECIDO/*.xlsx
+data/2. OUTPUT/5. PRESENTACION/**/*.xlsx
+data/2. OUTPUT/1. LOGS/*.json
+data/2. OUTPUT/1. LOGS/*.jsonl
 
 # Backups
 _OLD/backup_*/
 *.backup
 *.bak
+*.bak2
+*.bak3
+
+# Archivos de análisis/diagnóstico temporal (raíz)
+repomix-output.xml
+coverage.xml
+logs/
 
 # Sistema operativo
 Thumbs.db

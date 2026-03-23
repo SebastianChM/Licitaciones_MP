@@ -218,10 +218,12 @@ class GeneradorReporte(BaseStage):
     def _convertir_monto(self, row: pd.Series) -> int:
         try:
             moneda = str(row.get('Moneda', '')).upper().strip()
-            
+
             if moneda in ['CLP', 'PESO']:
-                return int(float(re.sub(self.REGEX_NUMERO, '', str(row.get('Monto', '0')))))
-            
+                # Strip ALL non-digit chars — handles thousands separators like '5.000.000'
+                monto_str = re.sub(r'[^\d]', '', str(row.get('Monto', '0')))
+                return int(monto_str) if monto_str else 0
+
             if 'UTM' in moneda:
                 tipo = str(row.get('Tipo Adquisición', ''))
                 nums = re.findall(r'(\d+(?:\.\d+)?)', tipo.replace('.', '').replace(',', '.'))
