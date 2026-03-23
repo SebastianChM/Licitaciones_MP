@@ -1,0 +1,72 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            // Depurar un test específico con F5 cuando el cursor está dentro del test
+            "name": "Debug: Test actual",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "pytest",
+            "args": ["${file}", "-v", "--no-header", "-x"],
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}/src;${workspaceFolder}"
+            }
+        },
+        {
+            // Depurar todos los tests
+            "name": "Debug: Todos los tests",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "pytest",
+            "args": ["tests/", "-v", "--tb=short"],
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}/src;${workspaceFolder}"
+            }
+        },
+        {
+            // Depurar el pipeline completo
+            "name": "Debug: Pipeline completo",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/run_pipeline.py",
+            "args": ["--no-descargar"],
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}/src;${workspaceFolder}"
+            },
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            // Depurar solo la Etapa 2 (filtrado) — el más útil para multi-area
+            "name": "Debug: Etapa 2 - Filtrado",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/run_pipeline.py",
+            "args": ["--etapas", "2", "--no-descargar"],
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}/src;${workspaceFolder}"
+            },
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            // Depurar la GUI
+            "name": "Debug: Lanzador GUI",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/lanzador_licitaciones.py",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}/src;${workspaceFolder}"
+            },
+            "cwd": "${workspaceFolder}"
+        }
+    ]
+}
