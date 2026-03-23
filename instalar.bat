@@ -29,7 +29,7 @@ REM --- 2. Crear entorno virtual ------------------------------------
 if exist ".venv\Scripts\activate.bat" (
     echo [OK] Entorno virtual ya existe, omitiendo creacion.
 ) else (
-    echo [1/3] Creando entorno virtual (.venv)...
+    echo [1/3] Creando entorno virtual ^(.venv^)...
     python -m venv .venv
     if errorlevel 1 (
         echo [ERROR] No se pudo crear el entorno virtual.
@@ -61,8 +61,8 @@ if exist ".env" (
     echo.
     echo  IMPORTANTE: Abre el archivo .env con un editor de texto
     echo  y completa los valores de las API Keys:
-    echo    - LICIT_MERCADO_PUBLICO_TICKET  (API Key de Mercado Publico)
-    echo    - LICIT_CMF_API_KEY             (opcional, para valor UTM en vivo)
+    echo    - LICIT_MERCADO_PUBLICO_TICKET  ^(API Key de Mercado Publico^)
+    echo    - LICIT_CMF_API_KEY             ^(opcional, para valor UTM en vivo^)
     echo.
 )
 
