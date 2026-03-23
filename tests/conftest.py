@@ -18,7 +18,7 @@ from unittest.mock import MagicMock
 def config():
     """Config con valores de test (no carga .env real)."""
     from utils.config import Config
-    return Config(env="testing", TEST_MODE=True, TEST_LIMIT=10)
+    return Config(env="testing")
 
 
 @pytest.fixture
