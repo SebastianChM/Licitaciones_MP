@@ -41,8 +41,8 @@ if exist ".venv\Scripts\activate.bat" (
 
 REM --- 3. Instalar dependencias ------------------------------------
 echo [2/3] Instalando dependencias (puede tardar unos minutos)...
-call ".venv\Scripts\pip" install --upgrade pip --quiet
-call ".venv\Scripts\pip" install -r requirements.txt --quiet
+call ".venv\Scripts\python.exe" -m pip install --upgrade pip --quiet 2>nul
+call ".venv\Scripts\python.exe" -m pip install -r requirements.txt --quiet
 if errorlevel 1 (
     echo [ERROR] Fallo la instalacion de dependencias.
     echo         Revisa tu conexion a Internet e intenta de nuevo.
