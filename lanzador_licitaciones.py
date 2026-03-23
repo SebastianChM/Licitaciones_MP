@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-🚀 LANZADOR LICITACIONES MERCADO PÚBLICO
-Interfaz gráfica simple para ejecutar el pipeline de licitaciones
+ðŸš€ LANZADOR LICITACIONES MERCADO PÃšBLICO
+Interfaz grÃ¡fica para ejecutar el pipeline de licitaciones MP
 """
 import tkinter as tk
 from tkinter import ttk, messagebox
@@ -13,383 +13,503 @@ import os
 from pathlib import Path
 import time
 
-# Hacer disponibles los módulos de src/ sin necesidad de instalar el paquete
 _SRC = Path(__file__).parent / "src"
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
 from utils.verificador_entorno import VerificadorEntorno  # noqa: E402
 
+
 class LanzadorLicitaciones:
+
+    # â”€â”€ Paleta de colores â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    C_AZUL      = "#1565C0"
+    C_AZUL_OSC  = "#0D47A1"
+    C_VERDE     = "#2E7D32"
+    C_ROJO      = "#C62828"
+    C_NARANJA   = "#E65100"
+    C_FONDO     = "#F0F2F5"
+    C_CARD      = "#FFFFFF"
+    C_TEXTO     = "#212121"
+    C_GRIS_SUB  = "#757575"
+
+    ETAPAS = [
+        ("0", "Descarga"),
+        ("1", "AuditorÃ­a"),
+        ("2", "Filtrado"),
+        ("3", "Enriquec."),
+        ("4", "Reporte"),
+        ("5", "Incremental"),
+    ]
+
     def __init__(self):
         self.root = tk.Tk()
-        self.root.title("🏛️ MP - Licitaciones Mercado Público")
-        self.root.geometry("600x540")
+        self.root.title("MP â€” Licitaciones Mercado PÃºblico")
+        self.root.geometry("680x820")
         self.root.resizable(False, False)
+        self.root.configure(bg=self.C_FONDO)
 
-        # Centrar ventana
         self.root.update_idletasks()
-        x = (self.root.winfo_screenwidth() // 2) - (600 // 2)
-        y = (self.root.winfo_screenheight() // 2) - (540 // 2)
-        self.root.geometry(f"600x540+{x}+{y}")
+        x = (self.root.winfo_screenwidth()  // 2) - 340
+        y = (self.root.winfo_screenheight() // 2) - 390
+        self.root.geometry(f"680x820+{x}+{y}")
 
-        # Colores corporativos MP
-        self.color_azul_mp = "#0066CC"
-        self.color_gris = "#F5F5F5"
-        self.root.configure(bg=self.color_gris)
-
-        self._verificador = VerificadorEntorno(Path(__file__).parent)
-        self._frame_checks: tk.LabelFrame | None = None
-
+        self._verificador  = VerificadorEntorno(Path(__file__).parent)
+        self._frame_checks: tk.Frame | None = None
+        self._etapa_labels: list[tk.Label] = []
         self.proceso_activo = False
-        self.setup_ui()
+        self._proceso_actual: "subprocess.Popen | None" = None
+        self._proceso_detenido = False
+
+        self.root.protocol("WM_DELETE_WINDOW", self.salir)
+        self._setup_ui()
         self._actualizar_checks()
-    
-    def setup_ui(self):
-        """Configurar interfaz de usuario"""
-        # Frame principal
-        main_frame = tk.Frame(self.root, bg=self.color_gris, padx=20, pady=20)
-        main_frame.pack(fill=tk.BOTH, expand=True)
-        
-        # Logo/Título
-        titulo = tk.Label(main_frame, 
-                         text="🏛️ MP CONSULTING",
-                         font=("Arial", 18, "bold"),
-                         fg=self.color_azul_mp,
-                         bg=self.color_gris)
-        titulo.pack(pady=(0, 5))
-        
-        subtitulo = tk.Label(main_frame,
-                            text="Sistema de Licitaciones Mercado Público",
-                            font=("Arial", 12),
-                            fg="gray",
-                            bg=self.color_gris)
-        subtitulo.pack(pady=(0, 8))
 
-        # --- Panel de estado del entorno ---
-        self._frame_checks = tk.LabelFrame(
-            main_frame,
-            text=" Estado del entorno ",
-            font=("Arial", 9, "bold"),
-            bg=self.color_gris,
-            pady=4,
-        )
-        self._frame_checks.pack(fill=tk.X, pady=(0, 10))
+    # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ SETUP UI â”€
 
-        # Botones principales
-        self.btn_completo = tk.Button(main_frame,
-                                     text="🚀 EJECUTAR PIPELINE COMPLETO",
-                                     font=("Arial", 12, "bold"),
-                                     bg=self.color_azul_mp,
-                                     fg="white",
-                                     width=40,
-                                     height=2,
-                                     command=self.ejecutar_pipeline_completo,
-                                     cursor="hand2")
-        self.btn_completo.pack(pady=10)
-        
-        self.btn_incremental = tk.Button(main_frame,
-                                        text="📊 SOLO ANÁLISIS INCREMENTAL",
-                                        font=("Arial", 12, "bold"),
-                                        bg="#00AA00",
-                                        fg="white",
-                                        width=40,
-                                        height=2,
-                                        command=self.ejecutar_solo_incremental,
-                                        cursor="hand2")
-        self.btn_incremental.pack(pady=10)
+    def _setup_ui(self):
+        # 1. BANNER â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        banner = tk.Frame(self.root, bg=self.C_AZUL, height=84)
+        banner.pack(fill=tk.X)
+        banner.pack_propagate(False)
 
-        self.btn_resultados = tk.Button(main_frame,
-                                        text="📂 Abrir carpeta de resultados",
-                                        font=("Arial", 10),
-                                        bg="#555555",
-                                        fg="white",
-                                        width=40,
-                                        command=self.abrir_carpeta_resultados,
-                                        cursor="hand2")
-        self.btn_resultados.pack(pady=(0, 10))
+        tk.Label(banner,
+                 text="ðŸ›ï¸  MP CONSULTING",
+                 font=("Arial", 20, "bold"),
+                 fg="white", bg=self.C_AZUL
+                 ).pack(anchor=tk.W, padx=24, pady=(16, 0))
+        tk.Label(banner,
+                 text="Sistema de Licitaciones â€” Mercado PÃºblico Chile",
+                 font=("Arial", 10),
+                 fg="#BBDEFB", bg=self.C_AZUL
+                 ).pack(anchor=tk.W, padx=27)
 
-        # Separador
-        separator = ttk.Separator(main_frame, orient='horizontal')
-        separator.pack(fill=tk.X, pady=20)
-        
-        # Área de estado
-        estado_frame = tk.Frame(main_frame, bg=self.color_gris)
-        estado_frame.pack(fill=tk.X, pady=10)
-        
-        tk.Label(estado_frame, text="Estado:", font=("Arial", 10, "bold"),
-                bg=self.color_gris).pack(anchor=tk.W)
-        
-        self.lbl_estado = tk.Label(estado_frame,
-                                  text="✅ Sistema listo para ejecutar",
-                                  font=("Arial", 10),
-                                  fg="green",
-                                  bg=self.color_gris)
-        self.lbl_estado.pack(anchor=tk.W, pady=(5, 10))
-        
-        # Barra de progreso
-        self.progress = ttk.Progressbar(main_frame, mode='indeterminate')
-        self.progress.pack(fill=tk.X, pady=10)
-        
-        # Área de log
-        log_frame = tk.Frame(main_frame, bg=self.color_gris)
-        log_frame.pack(fill=tk.BOTH, expand=True, pady=10)
-        
-        tk.Label(log_frame, text="Log de ejecución:", font=("Arial", 10, "bold"),
-                bg=self.color_gris).pack(anchor=tk.W)
-        
-        # Text widget con scrollbar
-        text_frame = tk.Frame(log_frame, bg=self.color_gris)
-        text_frame.pack(fill=tk.BOTH, expand=True)
-        
-        self.text_log = tk.Text(text_frame, height=8, width=70,
-                               font=("Consolas", 9),
-                               bg="black", fg="lime",
-                               state=tk.DISABLED)
-        
-        scrollbar = ttk.Scrollbar(text_frame, orient=tk.VERTICAL, command=self.text_log.yview)
-        self.text_log.configure(yscrollcommand=scrollbar.set)
-        
+        # 2. BODY â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        body = tk.Frame(self.root, bg=self.C_FONDO, padx=20, pady=14)
+        body.pack(fill=tk.BOTH, expand=True)
+
+        # 2a. CARD ESTADO ENTORNO â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        self._frame_checks = tk.Frame(
+            body, bg=self.C_CARD,
+            highlightthickness=1, highlightbackground="#D0D0D0")
+        self._frame_checks.pack(fill=tk.X, pady=(0, 12))
+
+        # 2b. BOTONES PRINCIPALES â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        btn_row = tk.Frame(body, bg=self.C_FONDO)
+        btn_row.pack(fill=tk.X, pady=(0, 10))
+        btn_row.columnconfigure(0, weight=1)
+        btn_row.columnconfigure(1, weight=1)
+
+        self.btn_completo = tk.Button(
+            btn_row,
+            text="ðŸš€  PIPELINE COMPLETO",
+            font=("Arial", 11, "bold"),
+            bg=self.C_AZUL, fg="white",
+            activebackground=self.C_AZUL_OSC, activeforeground="white",
+            height=2, relief=tk.FLAT, cursor="hand2",
+            command=self.ejecutar_pipeline_completo)
+        self.btn_completo.grid(row=0, column=0, sticky=tk.EW, padx=(0, 5))
+
+        self.btn_incremental = tk.Button(
+            btn_row,
+            text="ðŸ“Š  SOLO INCREMENTAL",
+            font=("Arial", 11, "bold"),
+            bg=self.C_VERDE, fg="white",
+            activebackground="#1B5E20", activeforeground="white",
+            height=2, relief=tk.FLAT, cursor="hand2",
+            command=self.ejecutar_solo_incremental)
+        self.btn_incremental.grid(row=0, column=1, sticky=tk.EW, padx=(5, 0))
+
+        self.btn_detener = tk.Button(
+            body,
+            text="\u23f9  DETENER PROCESO",
+            font=("Arial", 10, "bold"),
+            bg="#616161", fg="white",
+            activebackground=self.C_ROJO, activeforeground="white",
+            height=1, relief=tk.FLAT, cursor="hand2",
+            state=tk.DISABLED,
+            command=self.detener_proceso)
+        self.btn_detener.pack(fill=tk.X, pady=(0, 6))
+
+        # 2c. TRACKER DE ETAPAS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        etapa_card = tk.Frame(
+            body, bg=self.C_CARD,
+            highlightthickness=1, highlightbackground="#D0D0D0")
+        etapa_card.pack(fill=tk.X, pady=(0, 8))
+
+        tk.Label(etapa_card, text="Progreso de ejecuciÃ³n",
+                 font=("Arial", 8, "bold"),
+                 fg=self.C_GRIS_SUB, bg=self.C_CARD
+                 ).pack(anchor=tk.W, padx=12, pady=(7, 2))
+
+        etapa_row = tk.Frame(etapa_card, bg=self.C_CARD)
+        etapa_row.pack(fill=tk.X, padx=16, pady=(0, 10))
+
+        self._etapa_labels = []
+        for i, (num, nombre) in enumerate(self.ETAPAS):
+            col = tk.Frame(etapa_row, bg=self.C_CARD)
+            col.pack(side=tk.LEFT, expand=True)
+
+            lbl = tk.Label(col, text=num,
+                           font=("Arial", 10, "bold"),
+                           fg="#9E9E9E", bg="#E8E8E8",
+                           width=3, height=1, relief=tk.FLAT)
+            lbl.pack()
+            tk.Label(col, text=nombre,
+                     font=("Arial", 7), fg="#9E9E9E", bg=self.C_CARD,
+                     wraplength=72).pack()
+            self._etapa_labels.append(lbl)
+
+            if i < len(self.ETAPAS) - 1:
+                tk.Label(etapa_row, text="â€º",
+                         font=("Arial", 16, "bold"),
+                         fg="#BDBDBD", bg=self.C_CARD
+                         ).pack(side=tk.LEFT, pady=(0, 14))
+
+        # 2d. BARRA ESTADO + PROGRESO â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        estado_row = tk.Frame(body, bg=self.C_FONDO)
+        estado_row.pack(fill=tk.X, pady=(2, 2))
+
+        tk.Label(estado_row, text="Estado:",
+                 font=("Arial", 9, "bold"),
+                 fg=self.C_TEXTO, bg=self.C_FONDO).pack(side=tk.LEFT)
+
+        self.lbl_estado = tk.Label(estado_row,
+                                    text="âœ… Sistema listo",
+                                    font=("Arial", 9),
+                                    fg=self.C_VERDE, bg=self.C_FONDO)
+        self.lbl_estado.pack(side=tk.LEFT, padx=6)
+
+        self.progress = ttk.Progressbar(body, mode="indeterminate")
+        self.progress.pack(fill=tk.X, pady=(2, 8))
+
+        # 2e. LOG â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        tk.Label(body, text="Log de ejecuciÃ³n",
+                 font=("Arial", 9, "bold"),
+                 fg=self.C_TEXTO, bg=self.C_FONDO).pack(anchor=tk.W)
+
+        log_outer = tk.Frame(body, bg="#1E1E1E",
+                              highlightthickness=1,
+                              highlightbackground="#3C3C3C")
+        log_outer.pack(fill=tk.BOTH, expand=True, pady=(4, 10))
+
+        self.text_log = tk.Text(
+            log_outer,
+            font=("Consolas", 9),
+            bg="#1E1E1E", fg="#D4D4D4",
+            state=tk.DISABLED,
+            relief=tk.FLAT,
+            padx=8, pady=6,
+            wrap=tk.WORD)
+
+        self.text_log.tag_config("ts",      foreground="#6A9955")
+        self.text_log.tag_config("default", foreground="#D4D4D4")
+        self.text_log.tag_config("ok",      foreground="#4EC9B0")
+        self.text_log.tag_config("exito",   foreground="#4EC9B0",
+                                  font=("Consolas", 9, "bold"))
+        self.text_log.tag_config("error",   foreground="#F44747")
+        self.text_log.tag_config("warn",    foreground="#CE9178")
+        self.text_log.tag_config("etapa",   foreground="#569CD6",
+                                  font=("Consolas", 9, "bold"))
+
+        sb = ttk.Scrollbar(log_outer, orient=tk.VERTICAL,
+                            command=self.text_log.yview)
+        self.text_log.configure(yscrollcommand=sb.set)
+        sb.pack(side=tk.RIGHT, fill=tk.Y)
         self.text_log.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-        
-        # Botón salir
-        self.btn_salir = tk.Button(main_frame,
-                                  text="❌ Salir",
-                                  font=("Arial", 10),
-                                  bg="#CC0000",
-                                  fg="white",
-                                  width=15,
-                                  command=self.salir,
-                                  cursor="hand2")
-        self.btn_salir.pack(pady=10)
-        
-        # Log inicial
-        self.agregar_log("🎯 Sistema de licitaciones MP iniciado")
-        self.agregar_log("💡 Selecciona una opción para comenzar")
+
+        # 2f. BOTONES INFERIORES â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        bottom = tk.Frame(body, bg=self.C_FONDO)
+        bottom.pack(fill=tk.X)
+
+        self.btn_resultados = tk.Button(
+            bottom,
+            text="ðŸ“‚  Abrir carpeta de resultados",
+            font=("Arial", 9),
+            bg="#455A64", fg="white",
+            activebackground="#263238", activeforeground="white",
+            relief=tk.FLAT, cursor="hand2", padx=10, pady=5,
+            command=self.abrir_carpeta_resultados)
+        self.btn_resultados.pack(side=tk.LEFT)
+
+        self.btn_salir = tk.Button(
+            bottom,
+            text="âœ•  Salir",
+            font=("Arial", 9),
+            bg=self.C_ROJO, fg="white",
+            activebackground="#B71C1C", activeforeground="white",
+            relief=tk.FLAT, cursor="hand2", padx=10, pady=5,
+            command=self.salir)
+        self.btn_salir.pack(side=tk.RIGHT)
+
+        self.agregar_log("ðŸŽ¯ Sistema de licitaciones MP iniciado")
+        self.agregar_log("ðŸ’¡ Selecciona una opciÃ³n para comenzar")
+
+    # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ CHECKS PANEL â”€â”€â”€â”€
 
     def _actualizar_checks(self) -> None:
-        """Ejecuta las verificaciones de entorno y actualiza el panel de estado."""
         if self._frame_checks is None:
             return
-
-        # Limpiar contenido anterior del panel
-        for widget in self._frame_checks.winfo_children():
-            widget.destroy()
+        for w in self._frame_checks.winfo_children():
+            w.destroy()
 
         resultados = self._verificador.verificar_todo()
 
-        for r in resultados:
+        fila = tk.Frame(self._frame_checks, bg=self.C_CARD)
+        fila.pack(fill=tk.X, padx=12, pady=(8, 2))
+
+        for i, r in enumerate(resultados):
             if r.ok:
-                icono, color = "✅", "#1a7a1a"
+                icono, fg = "âœ…", self.C_VERDE
             elif r.critico:
-                icono, color = "❌", "#cc0000"
+                icono, fg = "âŒ", self.C_ROJO
             else:
-                icono, color = "⚠️ ", "#cc8800"
+                icono, fg = "âš ï¸", self.C_NARANJA
 
-            tk.Label(
-                self._frame_checks,
-                text=f"{icono}  {r.nombre}: {r.mensaje}",
-                font=("Arial", 8),
-                fg=color,
-                bg=self.color_gris,
-                anchor=tk.W,
-            ).pack(fill=tk.X, padx=10, pady=1)
+            cell = tk.Frame(fila, bg=self.C_CARD)
+            cell.grid(row=0, column=i, padx=8, sticky=tk.W)
+            tk.Label(cell, text=icono,
+                     font=("Arial", 11), bg=self.C_CARD).pack(side=tk.LEFT)
+            tk.Label(cell, text=r.nombre,
+                     font=("Arial", 8, "bold"),
+                     fg=fg, bg=self.C_CARD).pack(side=tk.LEFT, padx=(2, 0))
 
-        # Botón de re-verificación en la última fila
-        btn_frame = tk.Frame(self._frame_checks, bg=self.color_gris)
-        btn_frame.pack(fill=tk.X, padx=10, pady=(2, 4))
         tk.Button(
-            btn_frame,
-            text="🔄 Re-verificar",
+            self._frame_checks,
+            text="ðŸ”„ Re-verificar",
             font=("Arial", 8),
-            bg="#e0e0e0",
-            relief=tk.FLAT,
-            cursor="hand2",
+            bg="#E3F2FD", fg=self.C_AZUL,
+            relief=tk.FLAT, cursor="hand2", padx=6,
             command=self._actualizar_checks,
-        ).pack(anchor=tk.E)
+        ).pack(anchor=tk.E, padx=12, pady=(2, 6))
 
-        # Bloquear botones principales si hay errores críticos
         hay_error = self._verificador.hay_errores_criticos(resultados)
-        estado_btn = tk.DISABLED if hay_error else tk.NORMAL
-        self.btn_completo.config(state=estado_btn)
-        self.btn_incremental.config(state=estado_btn)
-
+        estado = tk.DISABLED if hay_error else tk.NORMAL
+        self.btn_completo.config(state=estado)
+        self.btn_incremental.config(state=estado)
         if hay_error:
-            self.actualizar_estado("⚠️ Configuración incompleta — revisa el panel superior", "red")
+            self.actualizar_estado("âš ï¸ ConfiguraciÃ³n incompleta â€” revisa el panel", self.C_ROJO)
         else:
-            self.actualizar_estado("✅ Sistema listo para ejecutar", "green")
-    
-    def agregar_log(self, mensaje):
-        """Agregar mensaje al área de log"""
-        timestamp = time.strftime("%H:%M:%S")
-        mensaje_completo = f"[{timestamp}] {mensaje}\n"
-        
+            self.actualizar_estado("âœ… Sistema listo para ejecutar", self.C_VERDE)
+
+    # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ LOG â”€â”€â”€â”€â”€
+
+    def _tag_para_linea(self, texto: str) -> str:
+        t = texto.lower()
+        if any(x in t for x in ("error", "âŒ", "fallo", "failed", "exception", "traceback")):
+            return "error"
+        if any(x in t for x in ("warning", "warn", "âš ", "advertencia")):
+            return "warn"
+        if any(x in t for x in ("âœ…", "completad", "Ã©xito", "exito", "success", "ðŸŽ‰", "[ok]")):
+            return "exito"
+        if any(x in t for x in ("etapa", "stage", "â–º", "â–¶", "iniciando", "ejecutando etapa")):
+            return "etapa"
+        return "default"
+
+    def agregar_log(self, mensaje: str):
         self.text_log.config(state=tk.NORMAL)
-        self.text_log.insert(tk.END, mensaje_completo)
+        # Si la lÃ­nea ya trae timestamp del logger (ej: "12:49:00 | INFO |") no aÃ±adir otro
+        import re as _re
+        tiene_ts = bool(_re.match(r'^\d{2}:\d{2}:\d{2}', mensaje)
+                        or _re.match(r'^\d{4}-\d{2}-\d{2}', mensaje))
+        if not tiene_ts:
+            self.text_log.insert(tk.END, f"[{time.strftime('%H:%M:%S')}] ", "ts")
+        self.text_log.insert(tk.END, mensaje + "\n", self._tag_para_linea(mensaje))
         self.text_log.see(tk.END)
         self.text_log.config(state=tk.DISABLED)
         self.root.update_idletasks()
-    
-    def actualizar_estado(self, mensaje, color="black"):
-        """Actualizar mensaje de estado"""
+
+    def actualizar_estado(self, mensaje: str, color: str = "black"):
         self.lbl_estado.config(text=mensaje, fg=color)
         self.root.update_idletasks()
-    
+
+    # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ ETAPA TRACKER â”€â”€â”€â”€
+
+    def _set_etapa(self, idx: int, estado: str):
+        estilos = {
+            "pending": ("#9E9E9E", "#E8E8E8"),
+            "running": ("white",   self.C_AZUL),
+            "done":    ("white",   self.C_VERDE),
+            "error":   ("white",   self.C_ROJO),
+        }
+        fg, bg = estilos.get(estado, estilos["pending"])
+        if 0 <= idx < len(self._etapa_labels):
+            self._etapa_labels[idx].config(fg=fg, bg=bg)
+            self.root.update_idletasks()
+
+    def _reset_etapas(self):
+        for i in range(len(self._etapa_labels)):
+            self._set_etapa(i, "pending")
+
+    def _detectar_etapa(self, linea: str) -> int | None:
+        l = linea.lower()
+        for i, (num, nombre) in enumerate(self.ETAPAS):
+            if f"etapa {num}" in l or f"etapa{num}" in l:
+                return i
+        return None
+
+    # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ PROCESO â”€â”€â”€â”€â”€
+
     def deshabilitar_botones(self):
-        """Deshabilitar botones durante ejecución"""
         self.btn_completo.config(state=tk.DISABLED)
         self.btn_incremental.config(state=tk.DISABLED)
-        self.progress.start()
+        self.btn_detener.config(state=tk.NORMAL, bg=self.C_ROJO)
+        self.progress.start(12)
         self.proceso_activo = True
-    
+
     def habilitar_botones(self):
-        """Habilitar botones tras ejecución"""
         self.btn_completo.config(state=tk.NORMAL)
         self.btn_incremental.config(state=tk.NORMAL)
+        self.btn_detener.config(state=tk.DISABLED, bg="#616161")
         self.progress.stop()
         self.proceso_activo = False
-    
+
+    def detener_proceso(self):
+        """Termina el proceso en ejecucion de forma segura."""
+        if self._proceso_actual and self._proceso_actual.poll() is None:
+            self._proceso_detenido = True
+            try:
+                self._proceso_actual.terminate()
+            except OSError:
+                pass
+            self.agregar_log("[STOP] Solicitud de detencion enviada al proceso")
+            self.actualizar_estado("[STOP] Deteniendo proceso...", self.C_NARANJA)
+            self.btn_detener.config(state=tk.DISABLED)
+
+    def _lanzar_proceso(self, cmd, msg_inicio, msg_ok, msg_err,
+                         estado_ok, estado_err, popup_ok, popup_err,
+                         etapas_esperadas: list | None = None):
+        if self.proceso_activo:
+            return
+
+        def ejecutar():
+            try:
+                self.deshabilitar_botones()
+                self._reset_etapas()
+                self.actualizar_estado(msg_inicio, self.C_AZUL)
+                self.agregar_log(f"â–¶  {msg_inicio}")
+
+                env = os.environ.copy()
+                env["PYTHONUNBUFFERED"]  = "1"
+                env["PYTHONUTF8"]        = "1"   # fuerza UTF-8 en stdout del subprocess
+                env["PYTHONIOENCODING"]  = "utf-8"
+
+                proceso = subprocess.Popen(
+                    cmd,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.DEVNULL,  # descarta stderr para evitar duplicados
+                    text=True,
+                    bufsize=1,                  # lÃ­nea a lÃ­nea
+                    encoding="utf-8",
+                    errors="replace",
+                    env=env,
+                    cwd=Path(__file__).parent,
+                )
+
+                self._proceso_actual = proceso
+                assert proceso.stdout is not None  # stdout=PIPE garantiza que no es None
+                etapa_actual = None
+                for linea in iter(proceso.stdout.readline, ""):
+                    linea = linea.rstrip()
+                    if not linea:
+                        continue
+                    self.agregar_log(linea)
+                    idx = self._detectar_etapa(linea)
+                    if idx is not None and idx != etapa_actual:
+                        if etapa_actual is not None:
+                            self._set_etapa(etapa_actual, "done")
+                        etapa_actual = idx
+                        self._set_etapa(idx, "running")
+
+                proceso.stdout.close()
+                proceso.wait()
+
+                if etapa_actual is not None:
+                    self._set_etapa(etapa_actual,
+                                    "done" if proceso.returncode == 0 else "error")
+
+                if self._proceso_detenido:
+                    self.actualizar_estado("[STOP] Proceso detenido por el usuario", self.C_NARANJA)
+                    self.agregar_log("[STOP] Proceso detenido")
+                elif proceso.returncode == 0:
+                    self.actualizar_estado(estado_ok, self.C_VERDE)
+                    self.agregar_log(f"ðŸŽ‰ {msg_ok}")
+                    messagebox.showinfo("Completado", popup_ok)
+                else:
+                    self.actualizar_estado(estado_err, self.C_ROJO)
+                    self.agregar_log(f"âŒ {msg_err}")
+                    messagebox.showerror("Error", popup_err)
+
+            except Exception as e:
+                self.actualizar_estado("âŒ Error crÃ­tico", self.C_ROJO)
+                self.agregar_log(f"âŒ Error inesperado: {e}")
+                messagebox.showerror("Error CrÃ­tico", f"Error inesperado:\n{e}")
+            finally:
+                self._proceso_actual = None
+                self._proceso_detenido = False
+                self.habilitar_botones()
+
+        threading.Thread(target=ejecutar, daemon=True).start()
+
     def ejecutar_pipeline_completo(self):
-        """Ejecutar pipeline completo en hilo separado"""
-        if self.proceso_activo:
-            return
-        
-        def ejecutar():
-            try:
-                self.deshabilitar_botones()
-                self.actualizar_estado("🚀 Ejecutando pipeline completo...", "blue")
-                self.agregar_log("🔄 Iniciando pipeline completo (Etapas 0-5)")
-                
-                # Ejecutar pipeline
-                script_path = Path(__file__).parent / "run_pipeline.py"
-                
-                proceso = subprocess.Popen(
-                    [sys.executable, str(script_path)],
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
-                    text=True,
-                    cwd=Path(__file__).parent
-                )
-                
-                # Leer output en tiempo real
-                while True:
-                    output = proceso.stdout.readline()
-                    if output == '' and proceso.poll() is not None:
-                        break
-                    if output:
-                        self.agregar_log(output.strip())
-                
-                proceso.wait()
-                
-                if proceso.returncode == 0:
-                    self.actualizar_estado("✅ Pipeline completado exitosamente", "green")
-                    self.agregar_log("🎉 ¡Pipeline ejecutado correctamente!")
-                    self.agregar_log("📊 Revisa los archivos generados en data/2. OUTPUT/")
-                    messagebox.showinfo("Éxito", 
-                                      "¡Pipeline ejecutado correctamente!\n\n" +
-                                      "Los reportes han sido generados en:\n" +
-                                      "data/2. OUTPUT/5. PRESENTACION/")
-                else:
-                    self.actualizar_estado("❌ Error en la ejecución", "red")
-                    self.agregar_log("❌ Error durante la ejecución")
-                    messagebox.showerror("Error", "Ocurrió un error durante la ejecución.\nRevisa los logs para más detalles.")
-                
-            except Exception as e:
-                self.actualizar_estado("❌ Error crítico", "red")
-                self.agregar_log(f"❌ Error: {str(e)}")
-                messagebox.showerror("Error Crítico", f"Error inesperado:\n{str(e)}")
-            finally:
-                self.habilitar_botones()
-        
-        thread = threading.Thread(target=ejecutar, daemon=True)
-        thread.start()
-    
+        script_path = Path(__file__).parent / "run_pipeline.py"
+        self._lanzar_proceso(
+            cmd=[sys.executable, "-u", str(script_path)],
+            msg_inicio="Ejecutando pipeline completo (Etapas 0 â†’ 5)...",
+            msg_ok="Â¡Pipeline completado correctamente!",
+            msg_err="Error durante el pipeline",
+            estado_ok="âœ… Pipeline completado",
+            estado_err="âŒ Error en el pipeline",
+            popup_ok="Â¡Pipeline ejecutado correctamente!\n\nResultados en:\ndata/2. OUTPUT/5. PRESENTACION/",
+            popup_err="Hubo un error en el pipeline.\nRevisa el log para mÃ¡s detalles.",
+            etapas_esperadas=list(range(6)),
+        )
+
     def ejecutar_solo_incremental(self):
-        """Ejecutar solo análisis incremental"""
-        if self.proceso_activo:
-            return
-        
-        def ejecutar():
-            try:
-                self.deshabilitar_botones()
-                self.actualizar_estado("📊 Ejecutando análisis incremental...", "blue")
-                self.agregar_log("🔄 Iniciando análisis incremental (Solo Etapa 5)")
-                
-                # Ejecutar solo etapa 5
-                script_path = Path(__file__).parent / "run_pipeline.py"
-                
-                proceso = subprocess.Popen(
-                    [sys.executable, str(script_path), "--etapas", "5"],
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
-                    text=True,
-                    cwd=Path(__file__).parent
-                )
-                
-                # Leer output en tiempo real
-                while True:
-                    output = proceso.stdout.readline()
-                    if output == '' and proceso.poll() is not None:
-                        break
-                    if output:
-                        self.agregar_log(output.strip())
-                
-                proceso.wait()
-                
-                if proceso.returncode == 0:
-                    self.actualizar_estado("✅ Análisis incremental completado", "green")
-                    self.agregar_log("🎉 ¡Análisis incremental ejecutado correctamente!")
-                    self.agregar_log("📊 Revisa los reportes incrementales generados")
-                    messagebox.showinfo("Éxito", 
-                                      "¡Análisis incremental completado!\n\n" +
-                                      "Los reportes incrementales han sido generados en:\n" +
-                                      "data/2. OUTPUT/5. PRESENTACION/INCREMENTALES/")
-                else:
-                    self.actualizar_estado("❌ Error en el análisis", "red")
-                    self.agregar_log("❌ Error durante el análisis incremental")
-                    messagebox.showerror("Error", "Ocurrió un error durante el análisis.\nRevisa los logs para más detalles.")
-                
-            except Exception as e:
-                self.actualizar_estado("❌ Error crítico", "red")
-                self.agregar_log(f"❌ Error: {str(e)}")
-                messagebox.showerror("Error Crítico", f"Error inesperado:\n{str(e)}")
-            finally:
-                self.habilitar_botones()
-        
-        thread = threading.Thread(target=ejecutar, daemon=True)
-        thread.start()
-    
+        script_path = Path(__file__).parent / "run_pipeline.py"
+        self._lanzar_proceso(
+            cmd=[sys.executable, "-u", str(script_path), "--etapas", "5"],
+            msg_inicio="Ejecutando anÃ¡lisis incremental (Etapa 5)...",
+            msg_ok="Â¡AnÃ¡lisis incremental completado!",
+            msg_err="Error en el anÃ¡lisis",
+            estado_ok="âœ… Incremental completado",
+            estado_err="âŒ Error en el incremental",
+            popup_ok="Â¡AnÃ¡lisis incremental completado!\n\nResultados en:\ndata/2. OUTPUT/5. PRESENTACION/INCREMENTALES/",
+            popup_err="Error en el anÃ¡lisis.\nRevisa el log.",
+            etapas_esperadas=[5],
+        )
+
     def abrir_carpeta_resultados(self):
-        """Abre la carpeta de resultados en el Explorador de Windows."""
         carpeta = Path(__file__).parent / "data" / "2. OUTPUT" / "5. PRESENTACION"
         carpeta.mkdir(parents=True, exist_ok=True)
         os.startfile(str(carpeta))
 
     def salir(self):
-        """Salir de la aplicación"""
         if self.proceso_activo:
-            if messagebox.askyesno("Confirmar", "Hay un proceso en ejecución.\n¿Deseas salir de todas formas?"):
-                self.root.quit()
+            if messagebox.askyesno("Confirmar", "Hay un proceso en ejecuciÃ³n.\nÂ¿Deseas salir?"):
+                if self._proceso_actual and self._proceso_actual.poll() is None:
+                    self._proceso_actual.terminate()
+                self.root.destroy()
         else:
-            self.root.quit()
-    
+            self.root.destroy()
+
     def run(self):
-        """Ejecutar la aplicación"""
         try:
             self.root.mainloop()
         except KeyboardInterrupt:
             pass
 
+
 def main():
-    """Punto de entrada principal"""
     try:
         app = LanzadorLicitaciones()
         app.run()
     except Exception as e:
-        print(f"Error crítico: {e}")
+        print(f"Error crÃ­tico: {e}")
         import traceback
         traceback.print_exc()
 
+
 if __name__ == "__main__":
     main()
+
