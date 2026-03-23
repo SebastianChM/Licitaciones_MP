@@ -1,0 +1,773 @@
+AUDITORÍA TAXONOMÍA - 2025-09-22_13-56-56
+============================================================
+Campos: 4 | Nuevos: 768 | Similares: 0 | Errores: 0
+
+Nivel 1: sin nuevos
+Nivel 2: 'Planchas fabricadas' (2) Ej: 697-31-LE25
+Nivel 2: 'Servicios de recuperación de pozos de gas y petróleo' (1) Ej: 3017-76-LE25
+Nivel 2: 'Piezas maquinadas' (1) Ej: 2711-64-LE25
+Nivel 2: 'Materiales explosivos' (6) Ej: 29-70-LE25
+Nivel 2: 'Consultorías en Economía' (1) Ej: 1725-209-LE25
+Nivel 2: 'Artículos para perforación de petróleo y gas' (1) Ej: 2945-30-LR25
+Nivel 2: 'Equipos de juego o apuestas' (1) Ej: 3996-40-L125
+Nivel 2: 'Equipos de pesca y caza' (1) Ej: 858-134-LQ25
+Nivel 3: 'Ventilación' (2) Ej: 3996-39-L125
+Nivel 3: 'Escuelas profesionales' (1) Ej: 1426050-8-CO25
+Nivel 3: 'Accesorios para techumbres' (3) Ej: 3385-15-LE25
+Nivel 3: 'Control de calidad' (103) Ej: 813-107-LP25
+Nivel 3: 'Interceptores y coladores' (1) Ej: 1057501-536-LE25
+Nivel 3: 'Sierras de cinta y accesorios' (1) Ej: 2450-57-LE25
+Nivel 3: 'Conducción, vuelo y vela' (2) Ej: 4408-26-LE25
+Nivel 3: 'Cuidado o ayuda para el cuidado de la casa para discapacitados físicos' (1) Ej: 1057049-263-LR25
+Nivel 3: 'Prospección o desarrollo minero' (1) Ej: 957865-6-LE25
+Nivel 3: 'Administración de la ingeniería de producción del campo petrolífero' (1) Ej: 1432083-15-LE25
+Nivel 3: 'Equipo y accesorios para animales de laboratorio' (1) Ej: 1107283-3-LE25
+Nivel 3: 'Limpieza exterior' (1) Ej: 5349-126-LE25
+Nivel 3: 'Maquinarias y equipos de imprenta' (1) Ej: 5586-165-LE25
+Nivel 3: 'Uniones de tubería' (5) Ej: 1057049-263-LR25
+Nivel 3: 'Productos de caza' (1) Ej: 858-134-LQ25
+Nivel 3: 'Chapa' (24) Ej: 1057501-517-LE25
+Nivel 3: 'Servicios de navegación' (1) Ej: 697-33-LQ25
+Nivel 3: 'Explosivos' (2) Ej: 29-70-LE25
+Nivel 3: 'Escafandras autónomas y tubos de respiración' (1) Ej: 2963-60-LE25
+Nivel 3: 'Accesorios para escáneres' (1) Ej: 1962-26-LE25
+Nivel 3: 'Cristales ópticos industriales' (1) Ej: 1417913-41-LR25
+Nivel 3: 'Estanques y sistemas de combustible' (1) Ej: 3827-38-L125
+Nivel 3: 'Limpiaparabrisas' (1) Ej: 3540-98-L125
+Nivel 3: 'Materiales de proyecto multicultural y accesorios' (1) Ej: 2126-146-LR25
+Nivel 3: 'Materiales electrónicos de aprendizaje' (2) Ej: 4291-89-LE25
+Nivel 3: 'Iniciadores' (3) Ej: 29-70-LE25
+Nivel 3: 'Construcciones para agricultura, pesca y ganadería' (1) Ej: 2450-58-LE25
+Nivel 3: 'Equipo para crianza y producción de insectos' (1) Ej: 735949-3-LE25
+Nivel 3: 'Equipo y suministros de tamizado y cribado para laboratorio' (1) Ej: 1469-199-L125
+Nivel 3: 'Instrumentos de metal' (12) Ej: 2328-67-LE25
+Nivel 3: 'Componentes del control ambiental para aviones' (1) Ej: 778992-40-LE25
+Nivel 3: 'Recursos de enseñanza de historia' (1) Ej: 514862-101-LE25
+Nivel 3: 'Conductos' (1) Ej: 1057049-263-LR25
+Nivel 3: 'Tinas y bateas de laboratorio' (2) Ej: 5586-163-LE25
+Nivel 3: 'Balnearios, instalaciones de entrenamiento y clubes de salud' (1) Ej: 1426038-24-LE25
+Nivel 3: 'Kits de matemáticas' (6) Ej: 514862-101-LE25
+Nivel 3: 'Otros servicios de bombeo del campo petrolífero' (1) Ej: 3017-76-LE25
+Nivel 3: 'Sistemas de comunicaciones en vuelo' (13) Ej: 938-3-LE25
+Nivel 3: 'Artículos del acelerador lineal de terapia de radiación de intensidad modulada (IMRT) l' (1) Ej: 1447792-3-LR25
+Nivel 3: 'Fracciones, pentominos y materiales de enseñanza de decimales' (1) Ej: 514862-101-LE25
+Nivel 3: 'Accesorios para máquinas de imprenta' (1) Ej: 2945-35-LE25
+Nivel 3: 'Equipo de incubación para laboratorio' (1) Ej: 813-128-LR25
+Nivel 3: 'Equipo de corte y pulido de piedras' (5) Ej: 3017-76-LE25
+Nivel 3: 'Maquinaria agrícola para limpieza, selección o clasificación' (4) Ej: 3017-76-LE25
+Nivel 3: 'Recursos materiales para el profesor de pensamiento lógico, percepción espacial, identificación de coincidencias y patrones' (4) Ej: 514862-101-LE25
+Nivel 3: 'Servicios de elevación por presión de gas' (1) Ej: 1432083-16-LE25
+Nivel 3: 'Accesorios de armas y municiones' (1) Ej: 693-50-LE25
+Nivel 3: 'Servicios de perforación de pozo' (1) Ej: 1098-7-LQ25
+Nivel 3: 'Suministros de costura variados' (1) Ej: 1952-132-LP25
+Nivel 3: 'Lodo de perforación' (1) Ej: 2945-30-LR25
+Nivel 3: 'Elaboración de carne, aves y pescado' (1) Ej: 4112-13-LE25
+Nivel 3: 'Productos secuenciadores de ácido desoxirribonucleico (ADN)' (55) Ej: 813-128-LR25
+Nivel 3: 'Herramientas de perforación' (1) Ej: 5586-152-LE25
+Nivel 3: 'Equipo y suministros antiestáticos' (1) Ej: 1057420-38-LE25
+Nivel 3: 'Equipo de filtrado' (1) Ej: 1057501-489-LE25
+Nivel 3: 'Recursos materiales de numeración y operaciones matemáticas básicas' (11) Ej: 514862-101-LE25
+Nivel 3: 'Conjuntos de planchas soldadas con latón' (2) Ej: 697-31-LE25
+Nivel 3: 'Tejidos sintéticos' (1) Ej: 1271359-151-LE25
+Nivel 3: 'Tácticas militares' (1) Ej: 634-101-LR25
+Nivel 3: 'Tecnología de los alimentos' (8) Ej: 85-27-LR25
+Nivel 3: 'Trituradores de pastillas, cortapastillas y productos relacionados' (1) Ej: 1627-58-LE25
+Nivel 3: 'Servicios de administración de construcción del pozo' (2) Ej: 1114-28-LE25
+Nivel 3: 'Pirotécnicos' (1) Ej: 2426-66-I225
+Nivel 3: 'Semillas de cultivos fibrosos y semilleros' (3) Ej: 1091-18-LE25
+Nivel 3: 'Platina' (2) Ej: 1057049-263-LR25
+Nivel 3: 'Equipo para fracturación' (1) Ej: 1057495-17-LE25
+Nivel 3: 'Piezas torneadas' (1) Ej: 2711-64-LE25
+Nivel 3: 'Plantas con flor' (1) Ej: 2450-60-LE25
+Nivel 3: 'Mesas y equipos para juegos' (1) Ej: 3996-40-L125
+Nivel 3: 'Desarme' (1) Ej: 1867-45-LQ25
+Nivel 3: 'Protección del terreno y del suelo' (2) Ej: 975-62-LR25
+Nivel 3: 'Asuntos relativos a sistemas monetarios' (1) Ej: 1725-209-LE25
+Nivel 3: 'Engranajes' (1) Ej: 4050-41-LE25
+Nivel 3: 'Procesos de fundición, refinado y moldeado del metal' (1) Ej: 1233613-109-LE25
+Nivel 3: 'Limpiadores químicos' (1) Ej: 4707-33-LE25
+Nivel 3: 'Antihistamínicos o bloqueadores H19' (1) Ej: 1237469-1-LQ25
+Nivel 3: 'Servicios de perforación de pozos abiertos' (1) Ej: 5394-42-LQ25
+Nivel 3: 'Materiales o recursos educativos de álgebra' (1) Ej: 514862-101-LE25
+Genérico: 'Fuegos artificiales' (1) Ej: 2426-66-I225
+Genérico: 'Kits de transformación de bacterias' (1) Ej: 1057404-68-LE25
+Genérico: 'Publicidad en transportes públicos y vía pública' (25) Ej: 5482-84-LP25
+Genérico: 'Muebles no modulares de oficina directiva' (1) Ej: 2416-30-LE25
+Genérico: 'Antisépticos de formaldehido' (1) Ej: 1057489-404-LQ25
+Genérico: 'Servicios de prevención o control de enfermedades infantiles' (2) Ej: 5594-11-LR25
+Genérico: 'Enseñanza conversacional de idiomas extranjeros' (1) Ej: 813-116-CO25
+Genérico: 'Marcadores de témpera o tiza de ventana' (1) Ej: 1072229-14-L125
+Genérico: 'Servicios de destrucción de documentos' (2) Ej: 1057430-63-LP25
+Genérico: 'Lavadoras tipo lavandería' (2) Ej: 1079689-12-LE25
+Genérico: 'Pileta recipiente' (1) Ej: 2458-11-LE25
+Genérico: 'Desinfectantes o agentes de limpieza de la unidad de hemodiálisis' (1) Ej: 2452-18-L125
+Genérico: 'Servicios de medir con calibrador durante perforación' (1) Ej: 5349-126-LE25
+Genérico: 'Instituciones financieras de desarrollo' (1) Ej: 2385-63-LQ25
+Genérico: 'Orquídeas' (1) Ej: 2450-60-LE25
+Genérico: 'Pistones de cilindro' (1) Ej: 2704-63-LE25
+Genérico: 'Pegamentos o cementos para moldes auriculares' (1) Ej: 1072229-14-L125
+Genérico: 'Platina de bronce' (1) Ej: 1057049-263-LR25
+Genérico: 'Rampas para sillas de ruedas' (1) Ej: 1394-4-LE25
+Genérico: 'Pelotas de ping-pong' (1) Ej: 1836-2-LE25
+Genérico: 'Cuentas o sets de actividades con cuentas para las matemáticas básicas' (11) Ej: 514862-101-LE25
+Genérico: 'Cuerdas o uñetas para instrumentos' (10) Ej: 2328-67-LE25
+Genérico: 'Ruedas de Ruleta' (1) Ej: 3996-40-L125
+Genérico: 'Diseñadores de vestuario' (1) Ej: 4079-46-LE25
+Genérico: 'Residuo de Germen de maíz' (1) Ej: 1063535-26-LE25
+Genérico: 'Copolímero en bloque de estireno (TES)' (1) Ej: 1029-26-LP25
+Genérico: 'Sembradoras de semillas' (2) Ej: 3996-39-L125
+Genérico: 'Semillas o esquejes de coníferas' (11) Ej: 4406-25-LE25
+Genérico: 'Sets de actividades de bloques geométricos' (1) Ej: 514862-101-LE25
+Genérico: 'Bloques de cerámica' (1) Ej: 1057049-263-LR25
+Genérico: 'Iniciadores de explosivos' (3) Ej: 29-70-LE25
+Genérico: 'Pamoato de triptorelina' (2) Ej: 3334-30-LE25
+Genérico: 'Sensores o reguladores de caudal, o componentes' (2) Ej: 4375-119-LE25
+Genérico: 'Baterías de plomo-ácido' (2) Ej: 891-11-LQ25
+Genérico: 'Rancheras' (1) Ej: 768-25-LR25
+Genérico: 'Cubos de centímetro' (1) Ej: 514862-101-LE25
+Genérico: 'Sillas o asientos de baño o ducha para personas con discapacidad física' (2) Ej: 3507-27-LE25
+Genérico: 'Máquinas de soldadura de laboratorio dental y suministros' (1) Ej: 1230848-29-LP25
+Genérico: 'Sistemas de reconocimiento óptico de caracteres' (1) Ej: 634-113-LQ25
+Genérico: 'Plantas de terrario' (1) Ej: 4168-82-LE25
+Genérico: 'Bloques geométricos' (2) Ej: 514862-101-LE25
+Genérico: 'Fibras de algodón' (1) Ej: 4999-35-LE25
+Genérico: 'Carritos o vagones de libros' (2) Ej: 1271359-148-LE25
+Genérico: 'Sondas de termómetro' (2) Ej: 4375-119-LE25
+Genérico: 'Cierres de puertas' (1) Ej: 1057049-263-LR25
+Genérico: 'Productos de artesanía multicultural' (1) Ej: 2126-146-LR25
+Genérico: 'Antenas de satélite' (1) Ej: 891-11-LQ25
+Genérico: 'Materiales y recursos para ortografía' (3) Ej: 514862-101-LE25
+Genérico: 'Empaquetaduras de bomba' (1) Ej: 3827-38-L125
+Genérico: 'Controladores de temperatura para criogenia' (1) Ej: 729-148-LE25
+Genérico: 'Agentes cubrientes odontológicos' (1) Ej: 1230848-29-LP25
+Genérico: 'Cuerda de goma,' (1) Ej: 3017-76-LE25
+Genérico: 'Reconocimiento militar' (1) Ej: 634-101-LR25
+Genérico: 'Semillas o almácigos de ajo' (2) Ej: 434-78-LE25
+Genérico: 'Sets de diagnóstico neurológico' (1) Ej: 2101-136-LE25
+Genérico: 'Empalmes o placas de unión' (2) Ej: 3540-98-L125
+Genérico: 'Sets de hemacitometría' (1) Ej: 1075337-49-LR25
+Genérico: 'Equipo de windsurf' (1) Ej: 1953-44-LE25
+Genérico: 'Servicios de análisis de los alimentos' (8) Ej: 85-27-LR25
+Genérico: 'Electrodos de pH' (1) Ej: 1499-169-LQ25
+Genérico: 'Corta pastillas o accesorios' (1) Ej: 1627-58-LE25
+Genérico: 'Tierra de hoja' (2) Ej: 3890-187-E225
+Genérico: 'Agua de servicio' (1) Ej: 3502-50-LE25
+Genérico: 'Aplanadoras en frío' (2) Ej: 998-37-LP25
+Genérico: 'Poliacrilato (ACM)' (1) Ej: 1077920-16-LP25
+Genérico: 'Materiales de enseñanza de mecánica de los líquidos o máquinas' (1) Ej: 1461054-25-LP25
+Genérico: 'Transporte carretera-marítimo' (2) Ej: 3179-25-LE25
+Genérico: 'Semillas o almácigos de nabo' (2) Ej: 434-78-LE25
+Genérico: 'Investigación genética' (5) Ej: 837-96-LR25
+Genérico: 'Servicios de muestreo para pruebas de formación' (1) Ej: 5394-42-LQ25
+Genérico: 'Sillones ejecutivos' (3) Ej: 1079689-12-LE25
+Genérico: 'Mezclas NPK (nitrógeno, fósforo y potasio)' (1) Ej: 735949-3-LE25
+Genérico: 'Protectores de codos' (1) Ej: 2460-88-L125
+Genérico: 'Yoduro de potasio' (1) Ej: 1237469-1-LQ25
+Genérico: 'Freidoras domésticas' (1) Ej: 1079576-42-L125
+Genérico: 'Equipo o piezas y pantallas de separación centrífuga' (1) Ej: 1057501-489-LE25
+Genérico: 'Servicios de cerrajero' (1) Ej: 707419-27-L125
+Genérico: 'Estiércol o guano' (1) Ej: 735949-3-LE25
+Genérico: 'Kits de creación de palabras' (2) Ej: 514862-101-LE25
+Genérico: 'Bombas estomacales' (2) Ej: 1057461-33-LE25
+Genérico: 'Contenedores de comida domésticos de usar y tirar' (1) Ej: 900-37-LE25
+Genérico: 'Grúas convencionales sobre camión' (1) Ej: 2770-154-LP25
+Genérico: 'Lodos con base de petróleo' (1) Ej: 2945-30-LR25
+Genérico: 'Darbepoetina alfa' (2) Ej: 1058132-37-LR25
+Genérico: 'Manguitos de toma de muestras' (1) Ej: 1063538-95-LP25
+Genérico: 'Dispositivos de calibración pulmonar' (1) Ej: 2157-135-LQ25
+Genérico: 'Testolactona' (1) Ej: 1237469-1-LQ25
+Genérico: 'Packs de inicio de teléfonos móviles' (1) Ej: 1213444-31-LE25
+Genérico: 'Sets de extracción de cálculos o accesorios' (2) Ej: 1057492-123-LP25
+Genérico: 'Dientes de porcelana' (1) Ej: 1230848-29-LP25
+Genérico: 'Espectrofotómetros' (1) Ej: 813-128-LR25
+Genérico: 'Baños calientes ‘dialsate’ de hemodiálisis' (1) Ej: 1057461-33-LE25
+Genérico: 'Congeladores domésticos' (1) Ej: 1233613-109-LE25
+Genérico: 'Tiendas de campaña' (5) Ej: 2328-64-LE25
+Genérico: 'Sillicos o accesorios para personas con discapacidad física' (3) Ej: 3507-27-LE25
+Genérico: 'Impresoras de serigrafía' (1) Ej: 5586-165-LE25
+Genérico: 'Sobretubos endoscópicos' (2) Ej: 1057402-226-LR25
+Genérico: 'Escuelas de conductores' (2) Ej: 4408-26-LE25
+Genérico: 'Cartuchos explosivos' (2) Ej: 29-70-LE25
+Genérico: 'Tubos de irrigación urinaria' (2) Ej: 2107-160-LE25
+Genérico: 'Subsalicilato de bismuto' (1) Ej: 1063535-26-LE25
+Genérico: 'Inspección de equipamientos' (1) Ej: 5067-174-L125
+Genérico: 'Separadores mandibulares' (3) Ej: 1947-177-LE25
+Genérico: 'Equipos de rescate y investigación de servicios médicos de urgencia' (7) Ej: 898-162-LP25
+Genérico: 'Software de servidor de transacción' (1) Ej: 564162-109-L125
+Genérico: 'Kits de matemáticas de primaria' (1) Ej: 514862-101-LE25
+Genérico: 'Aplicadores de loción para personas con discapacidad física' (1) Ej: 1077920-16-LP25
+Genérico: 'Manillas' (1) Ej: 778992-40-LE25
+Genérico: 'Diluyentes para pinturas' (1) Ej: 1057049-263-LR25
+Genérico: 'Semillas o almácigos de zapallo italiano' (1) Ej: 434-78-LE25
+Genérico: 'Fichas para las matemáticas básicas' (1) Ej: 514862-101-LE25
+Genérico: 'Puentes grúas' (1) Ej: 867990-105-LE25
+Genérico: 'Consola de control de horno' (1) Ej: 1057650-3-LQ25
+Genérico: 'Argollas de zunchamiento o de cercado' (2) Ej: 3138-29-LE25
+Genérico: 'Teléfonos fijos' (1) Ej: 2799-51-LQ25
+Genérico: 'Conductos de bronce' (2) Ej: 1057049-263-LR25
+Genérico: 'Anemómetros' (1) Ej: 1392-20-LE25
+Genérico: 'Semillas o almácigos de pimienta dulce' (1) Ej: 434-78-LE25
+Genérico: 'Subcarbonato de bismuto' (1) Ej: 1058132-41-LE25
+Genérico: 'Kits de números' (3) Ej: 514862-101-LE25
+Genérico: 'Gorras con cordones para personal sanitario' (1) Ej: 3017-76-LE25
+Genérico: 'Chapa de acero' (22) Ej: 1057501-517-LE25
+Genérico: 'Válvulas de bombas' (1) Ej: 5349-126-LE25
+Genérico: 'Servicios de perforación de pozo de tubo directo' (1) Ej: 1098-7-LQ25
+Genérico: 'Kits de actividades o juegos de tableros geométricos' (8) Ej: 514862-101-LE25
+Genérico: 'Calafateos' (1) Ej: 1480067-6-L125
+Genérico: 'Calcomanías' (6) Ej: 593951-88-LE25
+Genérico: 'Caldera de tubo de fuego' (1) Ej: 3477-72-LE25
+Genérico: 'Carnicerías' (1) Ej: 4112-13-LE25
+Genérico: 'Conductos eléctricos' (1) Ej: 983344-13-L125
+Genérico: 'Software de red LAN' (1) Ej: 918434-19-LP25
+Genérico: 'Servicios de resonancia magnética' (1) Ej: 1057539-188-LP25
+Genérico: 'Calibradores de pliegue de piel' (2) Ej: 4999-35-LE25
+Genérico: 'Sondas de oxígeno en disolución' (1) Ej: 4090-36-L125
+Genérico: 'Formación profesional para la industria agrícola' (1) Ej: 3885-38-LE25
+Genérico: 'Nylon - Poliamida (PA)' (1) Ej: 2450-57-LE25
+Genérico: 'Reactivos para la elaboración de gel de poliacrilamida' (1) Ej: 1077920-16-LP25
+Genérico: 'Sensores o transmisores de nivel' (3) Ej: 891-11-LQ25
+Genérico: 'Hiedra' (1) Ej: 1237469-1-LQ25
+Genérico: 'Hidrocloruro de flavoxato' (3) Ej: 3334-30-LE25
+Genérico: 'Lámparas de mesa' (2) Ej: 1079689-12-LE25
+Genérico: 'Mezcladores de hematología o química' (6) Ej: 898-167-LP25
+Genérico: 'Componentes de sujeción escleral' (3) Ej: 1057402-207-LR25
+Genérico: 'Tornillo de orejas' (1) Ej: 3996-39-L125
+Genérico: 'Lentes de proyección' (2) Ej: 2409-88-LE25
+Genérico: 'Manuales de instrucciones o funcionamiento' (1) Ej: 2711-62-LE25
+Genérico: 'Conjunto y brazos de visor' (1) Ej: 4469-135-LE25
+Genérico: 'Tartrato de vinorelbina' (1) Ej: 948356-104-LP25
+Genérico: 'Discos de cabbing' (5) Ej: 3017-76-LE25
+Genérico: 'Inversión rural' (1) Ej: 3681-15-LQ25
+Genérico: 'Rueda de la sierra de cinta' (1) Ej: 2450-57-LE25
+Genérico: 'Transbordadores de pasajeros o vehículos' (1) Ej: 2658-21-E225
+Genérico: 'Semillas o almácigos de Bruselas' (1) Ej: 434-78-LE25
+Genérico: 'Adhesivos de termo impregnación' (1) Ej: 1057049-263-LR25
+Genérico: 'Sets de instrumentos quirúrgicos de craneotomía' (1) Ej: 1057501-532-LP25
+Genérico: 'Distribución de energía eléctrica rural' (1) Ej: 752-36-LR25
+Genérico: 'Ingeniería de represas' (1) Ej: 975-60-LR25
+Genérico: 'Pentalmidón' (1) Ej: 1058088-27-LQ25
+Genérico: 'Compresores de gas' (1) Ej: 1057489-421-LQ25
+Genérico: 'Separador de tablero de bornes' (1) Ej: 1057049-263-LR25
+Genérico: 'Kits de reacción en cadena de la polimerasa (PCR) para genes específicos' (1) Ej: 1057402-222-LR25
+Genérico: 'Adaptadores de catéteres endoscópicos' (1) Ej: 1057402-225-LQ25
+Genérico: 'Planchas domésticas' (1) Ej: 1079689-12-LE25
+Genérico: 'Destrucción de armas' (1) Ej: 1867-45-LQ25
+Genérico: 'Asistentes administrativos' (2) Ej: 909103-6-LE25
+Genérico: 'Terminales de telecomunicaciones' (1) Ej: 758-53-LE25
+Genérico: 'Preparados tópicos de alcanfor' (1) Ej: 1063535-26-LE25
+Genérico: 'Acetato de trenbolona' (1) Ej: 1058128-21-LR25
+Genérico: 'Medidores de altura' (1) Ej: 891-11-LQ25
+Genérico: 'Cortador para manguera' (1) Ej: 434-78-LE25
+Genérico: 'Kits para dibujo' (2) Ej: 1461054-25-LP25
+Genérico: 'Secadores de atomización' (1) Ej: 1663-172-LE25
+Genérico: 'Marcos de madera preensamblados' (1) Ej: 2799-52-LE25
+Genérico: 'Tapa o fondo de cilindro' (1) Ej: 3827-38-L125
+Genérico: 'Esfinterótomos endoscópicos' (1) Ej: 1057489-388-LQ25
+Genérico: 'Clavos de sombrerete' (1) Ej: 3017-76-LE25
+Genérico: 'Juegos de lotería' (1) Ej: 514862-101-LE25
+Genérico: 'Buje de automotor' (1) Ej: 3540-98-L125
+Genérico: 'Manga de decoración de repostería de uso doméstico' (1) Ej: 1271359-151-LE25
+Genérico: 'Brazalete' (10) Ej: 1057420-38-LE25
+Genérico: 'Juegos de dominó' (5) Ej: 514862-101-LE25
+Genérico: 'Acetato cálcico' (1) Ej: 1058012-54-LR25
+Genérico: 'Procesadores de planchas de impresión offset' (1) Ej: 2945-35-LE25
+Genérico: 'Reguladores de aire' (1) Ej: 2450-57-LE25
+Genérico: 'Enantato de testosterona' (2) Ej: 608-242-LR25
+Genérico: 'Grabadora de chip de circuito integrado (CI)' (1) Ej: 4469-135-LE25
+Genérico: 'Distribución de prensa' (1) Ej: 4388-4-LE25
+Genérico: 'Estimuladores quirúrgicos de nervios o accesorios' (1) Ej: 1057439-89-LE25
+Genérico: 'Medio acoplamiento de tubería' (5) Ej: 1057049-263-LR25
+Genérico: 'Servicios de comprobación del agua' (1) Ej: 2735-127-LE25
+Genérico: 'Módulos de demostración de opciones de alimentos saludables' (1) Ej: 738-44-LE25
+Genérico: 'Alimentadores de documentos de escáner' (1) Ej: 1962-26-LE25
+Genérico: 'Semillas o almácigos de maní' (1) Ej: 434-78-LE25
+Genérico: 'Vibradores de hormigón' (1) Ej: 3017-76-LE25
+Genérico: 'Supervisión de perforación de pozo' (1) Ej: 1046-24-LE25
+Genérico: 'Resorcinol' (1) Ej: 1063535-26-LE25
+Genérico: 'Vacuna antitifoidea' (1) Ej: 5839-2-LQ25
+Genérico: 'Bolsas de arena' (1) Ej: 2427-93-LE25
+Genérico: 'Tiza para escribir o accesorios' (2) Ej: 1072229-14-L125
+Genérico: 'Cámaras médicas hiperbáricas' (1) Ej: 507428-117-LR25
+Genérico: 'Sondas endoscópicas' (2) Ej: 1057402-225-LQ25
+Genérico: 'Muelles de disco' (1) Ej: 2427-93-LE25
+Genérico: 'Software de servidor de autenticación' (1) Ej: 1057780-14-LP25
+Genérico: 'Detectores de burbuja de aire o espuma o embolla de la unidad de hemodiálisis o trampas o alertas' (1) Ej: 4375-119-LE25
+Genérico: 'Techos de habitaciones' (2) Ej: 3385-15-LE25
+Genérico: 'Acetato de fludrocortisona' (2) Ej: 1058085-218-LQ25
+Genérico: 'Planchas de escurrimiento' (1) Ej: 1057049-263-LR25
+Genérico: 'Placas o tapas de cerramientos' (1) Ej: 1057049-263-LR25
+Genérico: 'Reactivos de analizadores de ionograma urinario' (1) Ej: 2337-55-LR25
+Genérico: 'Tablas de bañar para personas con discapacidad física' (3) Ej: 2201-21-LP25
+Genérico: 'Receptáculo multiplicador eléctrico' (1) Ej: 4238-55-LE25
+Genérico: 'Piezas de recambio de vehículo de servicio de minería subterránea o accesorios' (1) Ej: 1080936-35-LP25
+Genérico: 'Unidades de combinación de electroterapia' (9) Ej: 1057461-33-LE25
+Genérico: 'Guantes de softball' (1) Ej: 1836-2-LE25
+Genérico: 'Ampliaciones de procesador de señales' (1) Ej: 1962-26-LE25
+Genérico: 'Clorhidrato de nafazolina' (1) Ej: 4083-31-LP25
+Genérico: 'Máquina de sellar' (1) Ej: 1233613-109-LE25
+Genérico: 'Rehabilitación para gente con discapacidades crónicas' (2) Ej: 1057500-62-LE25
+Genérico: 'Plancha de hormigón' (2) Ej: 1057049-263-LR25
+Genérico: 'Máscara antihumo' (1) Ej: 3173-11-LE25
+Genérico: 'Tarjetas de imágenes de historia' (1) Ej: 514862-101-LE25
+Genérico: 'Puntas de rodillo' (1) Ej: 3017-76-LE25
+Genérico: 'Lisinoprilo' (2) Ej: 1237469-1-LQ25
+Genérico: 'Hornos microondas de laboratorio' (1) Ej: 4707-33-LE25
+Genérico: 'Papel crepé para manualidades' (1) Ej: 1072229-14-L125
+Genérico: 'Densitómetros' (1) Ej: 813-128-LR25
+Genérico: 'Finales' (1) Ej: 1057049-263-LR25
+Genérico: 'Trombones' (2) Ej: 2328-67-LE25
+Genérico: 'Módulos telemáticos de intercambio' (1) Ej: 591-25-LR25
+Genérico: 'Iluminación exterior para automotores' (2) Ej: 3540-98-L125
+Genérico: 'Accesorios de electrocardiografía (ECG)' (2) Ej: 1057402-219-LR25
+Genérico: 'Máquinas perforadoras para libros' (2) Ej: 1186229-41-LE25
+Genérico: 'Materiales dentales de duplicado' (1) Ej: 1230848-29-LP25
+Genérico: 'Cadenas de rodillos' (1) Ej: 729-148-LE25
+Genérico: 'Contrabajos' (2) Ej: 514862-98-LE25
+Genérico: 'Aceite etérico' (2) Ej: 1237469-1-LQ25
+Genérico: 'Sordinas' (2) Ej: 514862-98-LE25
+Genérico: 'Balsas' (2) Ej: 5413-111-LE25
+Genérico: 'ampolletas fluorescentes' (1) Ej: 729-150-LE25
+Genérico: 'Planchas eléctricas de uso doméstico' (1) Ej: 1079576-42-L125
+Genérico: 'Ensamblaje especializado' (1) Ej: 2402-57-LE25
+Genérico: 'Sondeos de exploración y extracción de testigos' (1) Ej: 957865-6-LE25
+Genérico: 'Mesas de planificación' (1) Ej: 1002588-85-LR25
+Genérico: 'Sistemas de inyección de combustible' (1) Ej: 3827-38-L125
+Genérico: 'Ganchos de seguridad' (1) Ej: 697-31-LE25
+Genérico: 'Tarjetas didácticas para adición' (1) Ej: 514862-101-LE25
+Genérico: 'Acidificante canalización de aire' (1) Ej: 520149-25-LE25
+Genérico: 'Jeringas para extracción de sangre' (1) Ej: 1113159-35-L125
+Genérico: 'Monturas o soportes de motor' (1) Ej: 1057056-6-LE25
+Genérico: 'Pectina purificada con acidophilus' (2) Ej: 1237469-1-LQ25
+Genérico: 'Queratómetros combinados de refracción' (2) Ej: 1057461-33-LE25
+Genérico: 'Grapas médicas para uso interno' (2) Ej: 1057539-213-LR25
+Genérico: 'Mesa de dibujo' (1) Ej: 3907-17-LE25
+Genérico: 'Materiales de enseñanza de robótica' (2) Ej: 5586-165-LE25
+Genérico: 'Pipetas serológicas' (3) Ej: 564162-110-L125
+Genérico: 'Semillas o almácigos de berenjena' (1) Ej: 434-78-LE25
+Genérico: 'Citrato de clomifén' (1) Ej: 1058128-21-LR25
+Genérico: 'Diagramación' (1) Ej: 858-134-LQ25
+Genérico: 'Tejidos de cinta' (2) Ej: 3068-13-LE25
+Genérico: 'Clubes de campos al aire libre' (1) Ej: 5769-1-LE25
+Genérico: 'Equipo codificador-decodificador' (1) Ej: 729-150-LE25
+Genérico: 'Servicios de modificación del perfil del pozo' (1) Ej: 3017-76-LE25
+Genérico: 'Uniones de retención' (5) Ej: 1057049-263-LR25
+Genérico: 'Localizadores de señal' (1) Ej: 1409-11-LE25
+Genérico: 'Diurético osmótico de urea' (3) Ej: 1555-56-LE25
+Genérico: 'Catéteres o kits de cateterización nasal médica' (4) Ej: 1641-421-LE25
+Genérico: 'Semillas o almácigos de espinaca' (2) Ej: 434-78-LE25
+Genérico: 'Agujas para extracción de sangre' (2) Ej: 2258-221-LQ25
+Genérico: 'Impresoras de bandas' (1) Ej: 1057780-14-LP25
+Genérico: 'Respiradores' (2) Ej: 757-80-LE25
+Genérico: 'Kits de matemáticas de fracciones' (1) Ej: 514862-101-LE25
+Genérico: 'Sistemas de aplicación de pintura' (1) Ej: 4055-41-LE25
+Genérico: 'Herramientas del aterrizaje de la suspensión' (1) Ej: 3113-10-LE25
+Genérico: 'Vales' (1) Ej: 3502-54-LE25
+Genérico: 'Selladores' (2) Ej: 1057049-263-LR25
+Genérico: 'Posicionadores o sujetadores de instrumento o endoscopio' (1) Ej: 1057402-225-LQ25
+Genérico: 'Kits de reparación o piezas de apisonadora' (1) Ej: 4079-47-LE25
+Genérico: 'Vacuna antimeningocócica' (2) Ej: 621-936-LR25
+Genérico: 'Esparcidoras de gravilla' (1) Ej: 2427-93-LE25
+Genérico: 'Semillas de aceite de ricino' (3) Ej: 1301-13-LE25
+Genérico: 'Borrones de transferencia Northern, Southern o Western prefabricados' (1) Ej: 813-128-LR25
+Genérico: 'Magaldrato' (1) Ej: 1237469-1-LQ25
+Genérico: 'Interceptor de vapor' (1) Ej: 1057501-536-LE25
+Genérico: 'Relojes de repisa o de mesa' (1) Ej: 1057384-125-L125
+Genérico: 'Soportes para portaobjetos' (1) Ej: 1409-8-LE25
+Genérico: 'Ábacos' (2) Ej: 514862-101-LE25
+Genérico: 'Equipo de apisonamiento' (1) Ej: 3017-76-LE25
+Genérico: 'Tapas de estanque' (1) Ej: 3540-98-L125
+Genérico: 'Amortiguadores para camiones' (1) Ej: 3540-98-L125
+Genérico: 'Reactivos, soluciones o tinturas inmunológicos o serológicos' (7) Ej: 1641-438-LP25
+Genérico: 'Paneles y empanelado' (1) Ej: 2923-20-L125
+Genérico: 'Detectores de fugas de líquidos' (1) Ej: 3068-13-LE25
+Genérico: 'Polietileno de densidad media (MDPE)' (1) Ej: 1063538-95-LP25
+Genérico: 'Fulvestrant' (3) Ej: 948356-101-LE25
+Genérico: 'Compuestos desengrasantes' (1) Ej: 1663-172-LE25
+Genérico: 'Unidades bidimensionales de acelerador lineal de terapia de radiación de intensidad modulada (IMRT) médica' (1) Ej: 1447792-3-LR25
+Genérico: 'Kits o enzimas de secuenciado' (55) Ej: 813-128-LR25
+Genérico: 'Plásticos para coronas o puentes' (1) Ej: 1230848-29-LP25
+Genérico: 'Clorhidrato monohidrato de tirofibán' (1) Ej: 1058086-27-LQ25
+Genérico: 'Hidróxido de magnesio' (3) Ej: 1237469-1-LQ25
+Genérico: 'Software de edición y creación de video' (2) Ej: 752-32-LQ25
+Genérico: 'Programas de análisis financiero' (2) Ej: 4589-25-LE25
+Genérico: 'Análisis de base de datos' (1) Ej: 1605-101-LP25
+Genérico: 'Codificación de software' (1) Ej: 1079639-11-LE25
+Genérico: 'Pizarras magnéticas y accesorios' (2) Ej: 514862-101-LE25
+Genérico: 'Productos de mantequilla o leche en conserva' (4) Ej: 1301-13-LE25
+Genérico: 'Unidades de ultrasonido vascular' (1) Ej: 5221-45-LP25
+Genérico: 'Equipo del oxígeno del avión' (1) Ej: 778992-40-LE25
+Genérico: 'Básculas mecánicas' (2) Ej: 2200-43-LE25
+Genérico: 'Barredores de oxígeno' (1) Ej: 4707-33-LE25
+Genérico: 'Bases o soportes para señales' (1) Ej: 3470-18-L125
+Genérico: 'Semillas o almácigos de cebolla' (2) Ej: 434-78-LE25
+Genérico: 'Cinta transportadora' (1) Ej: 1057049-263-LR25
+Genérico: 'Materiales educativos sobre el ejercicio o el control del peso' (1) Ej: 1079689-11-LE25
+Genérico: 'Servicios de podiatras' (2) Ej: 2667-65-LP25
+Genérico: 'Bálsamo de labio' (1) Ej: 1237469-1-LQ25
+Genérico: 'Tirador o girador de perillas o manillas para discapacitados físicos' (1) Ej: 1057049-263-LR25
+Genérico: 'Aparcamiento' (2) Ej: 3499-14-LP25
+Genérico: 'Porta tubos de jejunostomía y gastrostomía' (1) Ej: 1057539-205-LR25
+Genérico: 'Equipo para apicultura' (1) Ej: 735949-3-LE25
+Genérico: 'Servicios de medicación preventiva de salud animal' (1) Ej: 3666-22-LE25
+Genérico: 'Cordones de seguridad' (1) Ej: 693-50-LE25
+Genérico: 'Diodos de capacitancia variable' (1) Ej: 5586-166-LE25
+Genérico: 'Semillas o almácigos de rábano' (1) Ej: 434-78-LE25
+Genérico: 'Calentadores de espacio' (2) Ej: 362-20-LE25
+Genérico: 'Clorzoxazona' (1) Ej: 1237469-1-LQ25
+Genérico: 'Aluminio' (1) Ej: 3068-13-LE25
+Genérico: 'Escritores de libros' (1) Ej: 3707-1-LE25
+Genérico: 'Paneles de control de turbina de gas' (2) Ej: 1432083-21-LE25
+Genérico: 'Cobre Cu' (1) Ej: 1057049-263-LR25
+Genérico: 'Calentadores de ducto de serpentín' (1) Ej: 3502-49-LE25
+Genérico: 'Bandejas para catéteres intravenosos o arteriales' (1) Ej: 4642-122-LE25
+Genérico: 'Secadores de calzado' (1) Ej: 1079689-12-LE25
+Genérico: 'Material de entrenamiento de tenis' (1) Ej: 1836-2-LE25
+Genérico: 'Pulverizadores' (1) Ej: 3890-182-E225
+Genérico: 'Foscarnet sódico' (2) Ej: 1058090-19-LQ25
+Genérico: 'Mesas de sierra de cinta' (1) Ej: 3017-76-LE25
+Genérico: 'Pupitres' (3) Ej: 1002588-85-LR25
+Genérico: 'Centella asiática' (1) Ej: 1058012-71-LR25
+Genérico: 'Compensadores de flotación' (1) Ej: 2963-60-LE25
+Genérico: 'Gramiles de clavos o de molduras' (1) Ej: 1057049-263-LR25
+Genérico: 'Catéteres quirúrgicos urológicos o accesorios' (6) Ej: 1057539-213-LR25
+Genérico: 'Mitones' (3) Ej: 3502-49-LE25
+Genérico: 'Dilatores o dispositivos de inflación o productos relacionados' (1) Ej: 886954-310-LP25
+Genérico: 'Tensores' (1) Ej: 3540-98-L125
+Genérico: 'Semillas o almácigos de mostaza' (1) Ej: 1301-13-LE25
+Genérico: 'Acetato de histrelina' (1) Ej: 1058128-21-LR25
+Genérico: 'Servicios de perrera' (1) Ej: 2699-32-LE25
+Genérico: 'Estanques sépticos' (2) Ej: 3328-89-L125
+Genérico: 'Sulfato de efedrina' (1) Ej: 5184-146-LE25
+Genérico: 'Producción de remolacha azucarera y caña de azúcar' (3) Ej: 2126-146-LR25
+Genérico: 'Perborato sódico' (1) Ej: 1237469-1-LQ25
+Genérico: 'Dilatadores quirúrgicos urológicos o accesorios' (3) Ej: 948355-21-LP25
+Genérico: 'Transmisiones por rozamiento' (1) Ej: 4050-41-LE25
+Genérico: 'Accesorios de instrumentos de meteorología' (1) Ej: 1392-20-LE25
+Genérico: 'Líneas electrificadas' (1) Ej: 707419-28-L125
+Genérico: 'Implantes cardiovasculares' (10) Ej: 2258-236-LQ25
+Genérico: 'Máquinas de medición por coordenadas (CMM)' (1) Ej: 3275-18-LE25
+Genérico: 'Varillaje de dirección' (1) Ej: 600644-12-LE25
+Genérico: 'Boquillas de ducha' (1) Ej: 1057049-263-LR25
+Genérico: 'Equipo de protección deportiva, excepto cascos' (2) Ej: 1461054-25-LP25
+Genérico: 'Servicios de producción de disolventes, glicoles o detergentes' (1) Ej: 1663-172-LE25
+Genérico: 'Servicios de diseño de gráficos y mapas' (1) Ej: 4143-6-LE25
+Genérico: 'Disectores quirúrgicos' (1) Ej: 948355-21-LP25
+Genérico: 'Pintura de acuarela de platillo' (1) Ej: 1072229-14-L125
+Genérico: 'Equipo de medida de resistencia calibrada' (1) Ej: 324-54-LP25
+Genérico: 'Desflurano' (1) Ej: 1058088-27-LQ25
+Genérico: 'Calefacción central' (1) Ej: 1663-171-LQ25
+Genérico: 'Empaques quirúrgicos de procedimiento de especialidad o de medida' (1) Ej: 5349-127-LE25
+Genérico: 'Bitartrato de colina' (1) Ej: 1237469-1-LQ25
+Genérico: 'Almohadas antimicrobianas de hospital' (1) Ej: 1079650-66-LE25
+Genérico: 'Servicios de cartografía de recursos hidráulicos' (1) Ej: 3996-39-L125
+Genérico: 'Unidades de refrigeración o circuitos de agua fría' (2) Ej: 745712-8-LE25
+Genérico: 'Prendas de deporte y buzos de niño' (2) Ej: 1658-376-LE25
+Genérico: 'Combinaciones de cuña escalonada y disco giratorio de medición de la precisión del cronómetro para equipo radiográfico' (3) Ej: 1057461-33-LE25
+Genérico: 'Formación profesional en comunicaciones' (1) Ej: 1417966-17-LE25
+Genérico: 'Luces de banco de laboratorio' (1) Ej: 3275-20-LE25
+Genérico: 'Libros de actividades para trabajar vocabulario' (1) Ej: 514862-101-LE25
+Genérico: 'Cepillos o esponjas o estregadera de baño para personas con discapacidad física' (4) Ej: 1549-133-LE25
+Genérico: 'Servicios financieros gubernamentales' (1) Ej: 609-42-LE25
+Genérico: 'Libros de recursos o actividades de bloques geométricos o bloques de patrones' (1) Ej: 514862-101-LE25
+Genérico: 'Bandas taloneras' (1) Ej: 1057420-38-LE25
+Genérico: 'Post Venta' (1) Ej: 5006-2-LE25
+Genérico: 'Software de servicios de directorio de Internet' (1) Ej: 1057780-14-LP25
+Genérico: 'Materiales educativos sobre los equivalentes de la cocina o las matemáticas de la cocina' (3) Ej: 514862-101-LE25
+Genérico: 'Lentes de vitrectomía' (1) Ej: 1057402-207-LR25
+Genérico: 'Redes o mallas deportivas' (1) Ej: 1836-2-LE25
+Genérico: 'Bandejas de disección' (1) Ej: 434-78-LE25
+Genérico: 'Cajas de música o mecanismos' (5) Ej: 2328-67-LE25
+Genérico: 'Ángulos de acero inoxidable' (1) Ej: 1057049-263-LR25
+Genérico: 'Ventilador' (2) Ej: 1057774-27-L125
+Genérico: 'Juegos de fracciones' (1) Ej: 514862-101-LE25
+Genérico: 'Válvulas endoscópicas o accesorios' (1) Ej: 1057402-226-LR25
+Genérico: 'Servicios de promoción y planificación de empleo' (2) Ej: 45-76-LQ25
+Genérico: 'Servicios marinos de comunicaciones o de navegación' (1) Ej: 697-33-LQ25
+Genérico: 'Paradas de emergencia' (2) Ej: 2582-93-LR25
+Genérico: 'Instrumentos para la membrana intraocular para cirugía oftálmica' (6) Ej: 1057402-207-LR25
+Genérico: 'Bombas de jeringa' (6) Ej: 1057461-33-LE25
+Genérico: 'Canal de riego' (1) Ej: 2450-58-LE25
+Genérico: 'Columnas' (1) Ej: 1057049-263-LR25
+Genérico: 'Servicios de sembradío de cultivos' (1) Ej: 612-26-LP25
+Genérico: 'Compases de afinación' (2) Ej: 514862-98-LE25
+Genérico: 'Ordeñadoras' (5) Ej: 1126922-37-LE25
+Genérico: 'Gas ciudad' (1) Ej: 1063538-99-LR25
+Genérico: 'Celulosa oxidizada' (1) Ej: 1075963-305-LQ25
+Genérico: 'Dermatoscopios' (2) Ej: 2448-137-LE25
+Genérico: 'Alzadores quirúrgicos' (1) Ej: 3470-18-L125
+Genérico: 'Instalaciones de bombeo de estimulación' (1) Ej: 1057495-17-LE25
+Genérico: 'Kits de adiestramiento de animales domésticos' (1) Ej: 883-34-LE25
+Genérico: 'Tarjetas didácticas de números' (1) Ej: 514862-101-LE25
+Genérico: 'Cámaras frigoríficas' (1) Ej: 3533-11-LE25
+Genérico: 'Bromhidrato de eletriptán' (3) Ej: 1237469-1-LQ25
+Genérico: 'Tomas de agua' (1) Ej: 1057492-133-LP25
+Genérico: 'Distribución minorista' (1) Ej: 2042-14-LE25
+Genérico: 'Combinación de noretindrona y etinilestradiol' (2) Ej: 4083-31-LP25
+Genérico: 'Software de mensajería instantánea' (2) Ej: 752-32-LQ25
+Genérico: 'Reactivos de analizadores de aminoácidos' (24) Ej: 1057534-35-L125
+Genérico: 'Unidades de Rayos X dentales' (1) Ej: 1057539-202-LE25
+Genérico: 'Mesilato de deferoxamina' (1) Ej: 5051-72-LP25
+Genérico: 'Conjuntos de planchas soldadas' (2) Ej: 697-31-LE25
+Genérico: 'Unidades de ultrafiltración lenta continua (SCUF) o productos relacionados' (1) Ej: 1057489-424-LE25
+Genérico: 'Instalación de conductos' (7) Ej: 1340-66-LE25
+Genérico: 'Platina de acero inoxidable' (1) Ej: 1057049-263-LR25
+Genérico: 'Entrevistas personales para investigación de mercado' (1) Ej: 1422557-11-LE25
+Genérico: 'Software de versión de archivo' (1) Ej: 2704-66-LE25
+Genérico: 'Controladores de temperatura para humidificadores' (1) Ej: 1057539-213-LR25
+Genérico: 'Desincrustantes' (1) Ej: 1663-172-LE25
+Genérico: 'Materiales de enseñanza del motor o sus piezas' (1) Ej: 1233615-63-LP25
+Genérico: 'Avisos en prensa impresa' (10) Ej: 2490-80-LP25
+Genérico: 'Protectores de la línea de control' (1) Ej: 3710-100-L125
+Genérico: 'Microscopios de electrones' (1) Ej: 5586-152-LE25
+Genérico: 'Separadores de laboratorio' (1) Ej: 1469-199-L125
+Genérico: 'Sistemas de medida por láser' (1) Ej: 1271359-156-LE25
+Genérico: 'Materiales educativos de comprensión sobre el abuso infantil, físico o psicológico' (1) Ej: 4999-35-LE25
+Genérico: 'Estación de autobuses' (3) Ej: 3181-35-LP25
+Genérico: 'Solución anticoagulante citrato fosfato dextrosa' (3) Ej: 5184-154-LR25
+Genérico: 'Incubadoras de paredes secas de una sola cámara de dióxido de carbono' (1) Ej: 813-128-LR25
+Genérico: 'Centro comercial' (1) Ej: 2699-28-LQ25
+Genérico: 'Libros de actividades para trabajar numeración' (3) Ej: 514862-101-LE25
+Genérico: 'ampolletas incandescentes' (1) Ej: 3827-38-L125
+Genérico: 'Tubos detectores de gas' (1) Ej: 520149-25-LE25
+Genérico: 'Agujas de biopsia o de aspiración endoscópica' (1) Ej: 1057539-211-LR25
+Genérico: 'Juguetes táctiles' (2) Ej: 1057384-125-L125
+Genérico: 'Pesos' (1) Ej: 1836-2-LE25
+Genérico: 'Alambre de Slickline' (1) Ej: 3017-76-LE25
+Genérico: 'Reguladores de fluido' (1) Ej: 1514-129-LP25
+Genérico: 'Fichas de juegos de matemáticas' (3) Ej: 514862-101-LE25
+Genérico: 'Bucles de tejido de punto de algodón' (1) Ej: 1952-132-LP25
+Genérico: 'Desechos y restos plásticos' (1) Ej: 2251-15-LE25
+Genérico: 'Cefpodoxima proxetilo' (1) Ej: 1058090-18-LP25
+Genérico: 'Software analítico o científico' (2) Ej: 564162-90-LE25
+Genérico: 'Cinta de sellado de hilo de politetrafluoretileno (PTFE)' (1) Ej: 3138-29-LE25
+Genérico: 'Programas de presentación' (1) Ej: 598-30-LP25
+Genérico: 'Bombillas o pajillas para beber' (1) Ej: 2126-146-LR25
+Genérico: 'Kits de inicio de nodo de servicio de Internet' (1) Ej: 1375756-9-LE25
+Genérico: 'Somatrem' (1) Ej: 1058128-21-LR25
+Genérico: 'Hidrocloruro de amantadina' (1) Ej: 1952-93-LP25
+Genérico: 'Transacción de divisas al contado' (1) Ej: 2483-214-LR25
+Genérico: 'Microscopios monoculares' (1) Ej: 2711-59-LE25
+Genérico: 'Dispositivo de sincronización de paquetes de datos de red' (1) Ej: 2429-6-LE25
+Genérico: 'Máquinas domésticas para hacer pan' (1) Ej: 1002588-91-LQ25
+Genérico: 'Kits de matemáticas de secundaria' (1) Ej: 514862-101-LE25
+Genérico: 'Trituradoras de martillo' (4) Ej: 3017-76-LE25
+Genérico: 'Escuelas técnicas profesionales' (1) Ej: 1426050-8-CO25
+Genérico: 'Baños termales' (2) Ej: 860729-2-LE25
+Genérico: 'Valproato sódico' (1) Ej: 1058085-232-LQ25
+Genérico: 'Tapón de cabeza del estetoscopio' (1) Ej: 1057420-38-LE25
+Genérico: 'Clorhidrato de alfuzosina' (1) Ej: 1237469-1-LQ25
+Genérico: 'Catéteres o kits de catéteres de enteroclisis médica' (1) Ej: 1380-252-LQ25
+Genérico: 'Tapas de radiador' (1) Ej: 3540-98-L125
+Genérico: 'Caucho de látex' (1) Ej: 5520-55-LE25
+Genérico: 'Lectores de tarjetas electrónicas' (1) Ej: 3275-21-LE25
+Genérico: 'Deshidratadores' (1) Ej: 1233613-109-LE25
+Genérico: 'Unidades de válvula endoscópica' (1) Ej: 2111-265-LP25
+Genérico: 'Licitación Privada de Consultoria' (1) Ej: 975-57-O225
+Genérico: 'Fundas de asientos' (3) Ej: 778992-40-LE25
+Genérico: 'Productos de limpieza de utensilios o pinceles' (1) Ej: 1057049-263-LR25
+Genérico: 'Soportes para aparatos quirúrgicos en la bandeja' (1) Ej: 2107-160-LE25
+Genérico: 'Sondas o sensores de avión' (13) Ej: 938-3-LE25
+Genérico: 'Cartel de montaje' (1) Ej: 593951-88-LE25
+Genérico: 'Semillas o plantas de algodón' (3) Ej: 1091-18-LE25
+Genérico: 'Lectores de tarjetas perforadas' (1) Ej: 3289-7-LE25
+Genérico: 'Sondas o sensores de oxímetros de pulso' (14) Ej: 1057539-213-LR25
+Genérico: 'Edición' (1) Ej: 1658-383-LE25
+Genérico: 'Remaches de cabeza plana' (1) Ej: 3017-76-LE25
+Genérico: 'Tarjetas en blanco' (1) Ej: 514862-101-LE25
+Genérico: 'Servicios de fabricación de hierro o acero' (1) Ej: 1233613-109-LE25
+Genérico: 'Cinc' (1) Ej: 3784-104-L125
+Genérico: 'Servicios de acupuntura' (1) Ej: 3692-25-LE25
+Genérico: 'Caballete con asiento' (1) Ej: 1002588-85-LR25
+Genérico: 'Papaína' (1) Ej: 3334-30-LE25
+Genérico: 'Zapatillas de niño' (1) Ej: 4205-11-LE25
+Genérico: 'Mobiliario de horno' (3) Ej: 1461054-25-LP25
+Genérico: 'Cloruro de magnesio' (1) Ej: 1027-13-LQ25
+Genérico: 'Software de copias de seguridad o archivado' (2) Ej: 752-32-LQ25
+Genérico: 'Cajas selladas con guantes para protección contra la radiación' (2) Ej: 1057420-38-LE25
+Genérico: 'Alfombras sintéticas' (1) Ej: 2799-46-LR25
+Genérico: 'Valvulótomos angioscópicos' (1) Ej: 1057539-204-LQ25
+Genérico: 'Aceite de engranajes' (1) Ej: 2450-57-LE25
+Genérico: 'Fajas para hernia' (3) Ej: 2107-160-LE25
+Genérico: 'Calibradores' (1) Ej: 5586-152-LE25
+Genérico: 'Instalación de material aislante' (1) Ej: 3117-87-LE25
+Genérico: 'Espuma de goma' (4) Ej: 1075337-46-LR25
+Genérico: 'Carbonato magnésico' (1) Ej: 1237469-1-LQ25
+Genérico: 'Software de administración de red privada virtual (VPN) o de seguridad de red' (3) Ej: 609-45-LQ25
+Genérico: 'Aesculus' (1) Ej: 1237469-1-LQ25
+Genérico: 'Productos de limpieza para automóviles' (1) Ej: 3068-13-LE25
+Genérico: 'Materiales electrónicos de aprendizaje basados en el plan de estudios' (1) Ej: 4291-89-LE25
+Genérico: 'Semillas o almácigos de apio' (2) Ej: 434-78-LE25
+Genérico: 'Mangueras multiuso gas agua aire' (1) Ej: 3827-38-L125
+Genérico: 'Servicio eléctrico o de gas médico' (1) Ej: 1057417-321-LP25
+Genérico: 'Dilatadores o sets de dilatación del lacrimal' (1) Ej: 1057402-207-LR25
+Genérico: 'Baños turcos, de vapor o rituales' (1) Ej: 1426038-24-LE25
+Genérico: 'Bloques de letras o números' (1) Ej: 514862-101-LE25
+Genérico: 'Válvulas de control' (1) Ej: 1000813-27-LE25
+Genérico: 'Expulsores de aire' (1) Ej: 3047-38-LE25
+Genérico: 'Tableros para las matemáticas básicas' (6) Ej: 514862-101-LE25
+Genérico: 'Sistemas de pintura variados' (1) Ej: 4076-200-LE25
+Genérico: 'Perfiles de latón' (2) Ej: 1057049-263-LR25
+Genérico: 'Sets o armarios de utensilios quirúrgicos o accesorios' (1) Ej: 4090-36-L125
+Genérico: 'Jarras domésticas' (2) Ej: 1514-126-LE25
+Genérico: 'Merengue' (1) Ej: 2126-146-LR25
+Genérico: 'Rollos dispensadores de pegamento' (1) Ej: 3890-185-L125
+Genérico: 'Cigüeñal' (2) Ej: 3540-98-L125
+Genérico: 'Limpiaparabrisas para automóviles' (1) Ej: 3540-98-L125
+Genérico: 'Ondas o cintas decorativas' (12) Ej: 2282-128-LE25
+Genérico: 'Sellos de diafragma' (1) Ej: 3138-29-LE25
+Genérico: 'Servicios de reparaciones, mantenimientos de carreteras o aparcamientos (estacionamientos)' (1) Ej: 1106-25-LE25
+Genérico: 'Servicios de promoción de artesanía tradicional' (1) Ej: 808-14-LE25
+Genérico: 'Kits de reparación provisional de dentaduras postizas' (1) Ej: 1230848-29-LP25
+Genérico: 'Polipropileno (PP)' (1) Ej: 1057404-68-LE25
+Genérico: 'Hornos de seguridad de laboratorio' (1) Ej: 813-128-LR25
+Genérico: 'Gestión de la calidad del aire' (1) Ej: 1499-174-LQ25
+Genérico: 'Filtros fijos' (4) Ej: 5349-126-LE25
+Genérico: 'Pistolas de calafateado' (1) Ej: 1057049-263-LR25
+Genérico: 'Equipo de duplicación de datos o soportes electrónicos' (1) Ej: 5890-65-LR25
+Genérico: 'Palas de plástico para uso comercial' (1) Ej: 3884-11-LE25
+Genérico: 'Salmones' (1) Ej: 3595-21-LE25
+Genérico: 'Controles de calidad, calibradores o normativas químicos' (3) Ej: 4967-56-LE25
+Genérico: 'Nilón' (1) Ej: 3138-29-LE25
+Genérico: 'Servicios de canalones (canaletas) y tubos de bajada' (2) Ej: 1697-31-LE25
+Genérico: 'Filtros para cartuchos de laboratorio' (3) Ej: 1274285-57-LE25
+Genérico: 'Set de cuchillos de uso doméstico' (2) Ej: 3470-18-L125
+Genérico: 'Juguetes para montar' (2) Ej: 5586-157-LE25
+Genérico: 'Piezas torneadas metálicas' (1) Ej: 2711-64-LE25
+Genérico: 'Edificio del área de servicios' (1) Ej: 1572-27-LE25
+Genérico: 'Fundas o cubiertas de cámara' (1) Ej: 968521-10-LP25
+Genérico: 'Maleato de mepiramina' (1) Ej: 1237469-1-LQ25
+Genérico: 'Pinturas de látex' (1) Ej: 1057049-263-LR25
+Genérico: 'Procedimientos o servicios administrativos' (1) Ej: 1075337-47-LR25
+Genérico: 'Raquetas de squash' (1) Ej: 1836-2-LE25
+Genérico: 'Aplicadores de bandas ligadoras quirúrgicas o bandas o productos relacionados' (5) Ej: 1002772-106-LR25
+Genérico: 'Decoraciones de postres' (1) Ej: 1301-13-LE25
+Genérico: 'Trituradores o pulverizadores de laboratorio' (1) Ej: 3017-76-LE25
+Genérico: 'Motores diesel' (2) Ej: 2709-105-LE25
+Genérico: 'Seguro de interrupción de procesos de negocio' (1) Ej: 1371-5-LQ25
+Genérico: 'Auspicios y patrocinios de eventos' (4) Ej: 2408-223-LE25
+Genérico: 'Codeína' (1) Ej: 1063535-26-LE25
+Genérico: 'Kits de modificación o instalación de equipo de telecomunicaciones' (2) Ej: 1552-45-LE25
+Genérico: 'Conformadores o capas protectoras para cirugía oftálmica' (4) Ej: 1057402-207-LR25
+Genérico: 'Señuelos deportivos' (1) Ej: 858-134-LQ25
+Genérico: 'Pistolas de clavos mecánicas' (3) Ej: 3017-76-LE25
+Genérico: 'Semillas o almácigos de ruda inglesa' (1) Ej: 3017-76-LE25
+Genérico: 'Análisis monetario' (1) Ej: 1725-209-LE25
+Genérico: 'Calibrador o simulador de temperatura' (1) Ej: 891-11-LQ25
+Genérico: 'Detector de golpeo pre-ignición' (1) Ej: 1057049-263-LR25
+Genérico: 'Software de búsqueda o recuperación de información' (2) Ej: 3970-4-LE25
+Genérico: 'Fundas o cartucheras para armas' (1) Ej: 693-50-LE25
+Genérico: 'Esterilizadores por ultravioletas (UV) de laboratorio' (1) Ej: 3275-23-LE25
+Genérico: 'Servicios de prueba o de fijar la elevación por presión de gas' (1) Ej: 1432083-16-LE25
+Genérico: 'Difusores de aire' (1) Ej: 3996-39-L125
+Genérico: 'Hidrocloruro de ondansetrona' (1) Ej: 4162-40-L125
+Genérico: 'Dilatadores quirúrgicos o accesorios' (5) Ej: 1641-420-LE25
+Genérico: 'Servicios de construcción o fabricación del pozo' (2) Ej: 1114-28-LE25
+Genérico: 'Rellenos de sándwich frescos' (5) Ej: 1301-12-LE25
+Genérico: 'Bombas de pozo' (1) Ej: 3310-15-LP25
+Genérico: 'Dimeticona' (1) Ej: 1237469-1-LQ25
+Genérico: 'Cartel de ilustración' (1) Ej: 593951-88-LE25
+Genérico: 'Barras de coger o rieles de seguridad de la bañera para personas con discapacidad física' (3) Ej: 3507-27-LE25
+Genérico: 'Ramipril' (1) Ej: 1058128-20-LR25
+Genérico: 'Anillos de fijación para cirugía oftálmica' (2) Ej: 1057489-422-LE25
+Genérico: 'Monitores de dióxido de carbono al final de la espiración (ETCO2) o suministros' (1) Ej: 1057544-331-LP25
+Genérico: 'Almohadillas quitamanchas de los instrumentos' (6) Ej: 1075963-348-LE25
+Genérico: 'Grasas o lípidos' (2) Ej: 2101-136-LE25
+Genérico: 'Programas para la disuasión de delitos' (2) Ej: 1426099-8-LR25
+Genérico: 'Servicios de almacenaje subterráneo del gas' (1) Ej: 1432083-15-LE25
+Genérico: 'Papel para trazado de curvas' (1) Ej: 769-90-LQ25
+Genérico: 'Unidades de monitorización de presión intracompartimental o accesorios' (1) Ej: 1075337-50-LR25
+Genérico: 'Servicios de corrección de pruebas' (2) Ej: 721703-39-LR25
+Genérico: 'Andamios' (1) Ej: 858-135-LQ25
+Genérico: 'Servicios de fisioterapia' (1) Ej: 1426038-24-LE25
+Genérico: 'Semillas o almácigos de perejil' (1) Ej: 434-78-LE25
+Genérico: 'Grabadoras' (1) Ej: 564162-108-L125
+Genérico: 'Artículo de cámara' (1) Ej: 520149-25-LE25
+Genérico: 'Personal jurídico' (1) Ej: 623663-21-CO25
+Genérico: 'Pulidoras mecánicas' (1) Ej: 2450-57-LE25
+Genérico: 'Asientos de inodoros para personas con discapacidad física' (1) Ej: 3507-27-LE25
+Genérico: 'Benzoato de bencilo' (1) Ej: 1237469-1-LQ25
+Genérico: 'Ducha de mano para personas con discapacidad física' (2) Ej: 3507-27-LE25
+Genérico: 'Clorhidrato de tioridazina' (2) Ej: 1058095-166-LR25
+Genérico: 'Colposcopios o vaginoscopios o accesorios' (1) Ej: 5349-134-LE25
+Genérico: 'Cristal moldeado' (1) Ej: 1417913-41-LR25
+Genérico: 'Producción de cacao' (1) Ej: 2126-146-LR25
+Genérico: 'Culatas de transmisión' (1) Ej: 3827-38-L125
+Genérico: 'Extracto de Centella asiatica' (1) Ej: 3334-30-LE25
+Genérico: 'Trompetas' (2) Ej: 2328-67-LE25
+Genérico: 'Imiquimod' (2) Ej: 5051-72-LP25
+Genérico: 'Cinarizina' (1) Ej: 1559-26-LR25
+Genérico: 'Kits de compresor' (1) Ej: 1002588-91-LQ25
+Genérico: 'Chapa de acero inoxidable' (2) Ej: 1057049-263-LR25
+Genérico: 'Software de creación de informes de bases de datos' (1) Ej: 1300-41-LE25
+Genérico: 'Alfombrilla de silla' (2) Ej: 3996-39-L125
+Genérico: 'Muebles no modulares de oficina ejecutiva' (1) Ej: 2416-30-LE25
+Genérico: 'Correas médicas no adhesivas' (4) Ej: 617807-94-LP25
+Genérico: 'Accesorios de horno para cocer cerámica' (1) Ej: 1079689-12-LE25
+Genérico: 'Análisis de la fertilidad del suelo' (1) Ej: 5561-4-LE25
+Genérico: 'Kits de matemáticas de multiplicación' (2) Ej: 514862-101-LE25
+Genérico: 'Arcos quirúrgicos de tracción o recodos de tractor de clavija y productos relacionados' (1) Ej: 1057461-33-LE25
+Genérico: 'Servicios de planificación y facilitación de reuniones y grupos de trabajo' (1) Ej: 801-23-LE25
+Genérico: 'Reguladores' (1) Ej: 1271359-147-L125
+Genérico: 'Software de consultas e interfaz de usuario de bases de datos' (1) Ej: 752-32-LQ25
+Genérico: 'Cercos de madera' (1) Ej: 3540-93-LE25
+Genérico: 'Sistemas de central privada conectada a la red pública (PBX)' (1) Ej: 1697-33-LE25
+Genérico: 'Mezcladores y agitadores' (1) Ej: 1175-153-LE25
+Genérico: 'Aconitum napelus' (1) Ej: 1237469-1-LQ25
+Genérico: 'Producción de pescado' (1) Ej: 2126-146-LR25
+Genérico: 'Extracto de Ipecacuanha' (9) Ej: 1237469-1-LQ25
+Genérico: 'Pelotas de squash' (1) Ej: 1836-2-LE25
+Genérico: 'Semillas o almácigos de canela' (2) Ej: 2126-146-LR25
+Genérico: 'Espirales periféricas o biliares' (3) Ej: 1057402-229-LQ25
+Genérico: 'Tableros geométricos' (1) Ej: 514862-101-LE25
+Genérico: 'Organizadores para cajones de escritorio' (1) Ej: 1057774-27-L125
+Genérico: 'Cuchillo de grado bajo' (1) Ej: 2730-69-LE25
+Genérico: 'Ensayo y calibrado de equipos' (103) Ej: 813-107-LP25
+Genérico: 'Sistemas de intercomunicadores' (1) Ej: 4469-135-LE25
+Genérico: 'Kits de aislamiento de pastas odontológicas o accesorios' (1) Ej: 1230848-29-LP25
+Genérico: 'Semillas o almácigos de tomate' (2) Ej: 434-78-LE25
+Genérico: 'Binoculares' (1) Ej: 1466062-3-LE25
+Genérico: 'Transductores de bombas de infusión intravenosa' (1) Ej: 1057539-207-LR25
+Genérico: 'Pluviómetros' (1) Ej: 891-11-LQ25
+Genérico: 'Equipo o suministros de cámara oscura para radiografía médica' (1) Ej: 1532-57-LE25
+Genérico: 'Implantes cosméticos o plásticos o expansores o ajustes de tejido' (7) Ej: 2080-450-LP25
+Genérico: 'Aminoácidos o sus derivados' (3) Ej: 2098-119-LE25
+Genérico: 'Kits de manguitos para tomar la tensión arterial' (1) Ej: 4999-35-LE25
+Genérico: 'Pernos de tracción' (1) Ej: 3827-38-L125
+Genérico: 'Semillas o almácigos de okra' (1) Ej: 434-78-LE25
+Genérico: 'Materiales de comprensión de lectura' (1) Ej: 514862-101-LE25
+Genérico: 'Vacuna antiamarílica' (1) Ej: 5839-2-LQ25
+Genérico: 'Bandejas o equipo de irrigación de alimentación enteral' (1) Ej: 1057539-211-LR25
+Genérico: 'Baños de agua de agitación oscilante' (1) Ej: 5586-163-LE25
+Genérico: 'Estabilizadores de barrenos hacia abajo' (1) Ej: 5586-152-LE25
+Genérico: 'Ácido láctico' (3) Ej: 1952-133-LP25
+Genérico: 'Puente de carretera' (1) Ej: 2758-26-LQ25
+Genérico: 'Lectores de microplacas' (1) Ej: 5413-118-LE25
+Genérico: 'Agujas para cirugía oftalmológica' (3) Ej: 1057402-207-LR25
+Genérico: 'Kits de craneotomía' (1) Ej: 1057501-515-LP25
+Genérico: 'Toxoides diftérico y tetánico y vacuna antipertussis acelular' (1) Ej: 5839-2-LQ25
+Genérico: 'Carriles o estantes para sistemas de infusión intravenosa por gravedad' (2) Ej: 2200-43-LE25
+Genérico: 'Telas sintéticas tejidas de dobby' (1) Ej: 1271359-151-LE25
+Genérico: 'Servicios de conservación o protección del suelo' (2) Ej: 975-62-LR25
+Genérico: 'Modelos humanos anatómicos para formación y estudios de medicina' (1) Ej: 1271359-151-LE25
+Genérico: 'Acetato de leuprolida' (1) Ej: 1058095-170-LR25
+Genérico: 'Unidad de control' (1) Ej: 2405-103-LP25
+Genérico: 'Barreras de seguridad intrínseca' (1) Ej: 883-35-LE25
+Genérico: 'Esponjas para cirugía oftalmológica' (2) Ej: 968521-10-LP25
+Genérico: 'Kits de matemáticas infantiles' (1) Ej: 514862-101-LE25
+Genérico: 'Equipo de ensayos para animales' (1) Ej: 1107283-3-LE25
+Genérico: 'Hornos de laboratorio dental' (1) Ej: 1180885-24-LE25
+Genérico: 'Bombas de combustible' (7) Ej: 1116007-24-LP25
+Genérico: 'Básculas analíticas' (2) Ej: 5221-45-LP25
+Genérico: 'Carrete de plástico' (1) Ej: 1057420-38-LE25
+Genérico: 'Bolsas para agua' (1) Ej: 3996-39-L125
+Genérico: 'Puestos de amarre' (1) Ej: 2446-319-LE25
+Genérico: 'Adaptadores o conectores de succión' (2) Ej: 968521-10-LP25
+Genérico: 'Accesorios o suministros para baños de laboratorio' (1) Ej: 697-31-LE25
+Genérico: 'Saxos' (8) Ej: 2328-67-LE25
+Genérico: 'Tapas de tablero de bornes' (2) Ej: 1057049-263-LR25
+Genérico: 'Armarios o congeladores verticales ultrafríos' (1) Ej: 1233613-109-LE25
+Genérico: 'Limpieza a vapor' (1) Ej: 5349-126-LE25
+Genérico: 'Cuarzo' (2) Ej: 564162-110-L125
+Genérico: 'Aparatos ambientadores de aire' (1) Ej: 1002588-91-LQ25
+Genérico: 'Papel para forrar' (1) Ej: 1979-161-LQ25

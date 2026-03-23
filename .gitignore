@@ -1,0 +1,94 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual Environment
+venv/
+ENV/
+env/
+.venv
+
+# IDE
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# PyTest
+.pytest_cache/
+.coverage
+htmlcov/
+*.cover
+
+# Logs
+*.log
+4. DATA/2. OUTPUT/1. LOGS/*.log
+
+# Datos sensibles
+*.env
+.env
+secrets.json
+config.local.py
+
+# Excel temporales
+~$*.xlsx
+~$*.xls
+
+# Outputs generados (no versionar datos procesados)
+data/2. OUTPUT/2. HALLAZGOS/*.xlsx
+data/2. OUTPUT/3. FILTRADO/*.xlsx
+data/2. OUTPUT/4. ENRIQUECIDO/*.xlsx
+data/2. OUTPUT/5. PRESENTACION/**/*.xlsx
+data/2. OUTPUT/1. LOGS/*.json
+data/2. OUTPUT/1. LOGS/*.jsonl
+
+# Backups
+_OLD/backup_*/
+*.backup
+*.bak
+*.bak2
+*.bak3
+
+# Archivos de análisis/diagnóstico temporal (raíz)
+repomix-output.xml
+coverage.xml
+logs/
+
+# Sistema operativo
+Thumbs.db
+desktop.ini
+
+# Archivos grandes
+*.zip
+*.tar.gz
+*.rar
+
+# Caché de modelos ML (si se implementa)
+*.pkl
+*.joblib
+models/cache/

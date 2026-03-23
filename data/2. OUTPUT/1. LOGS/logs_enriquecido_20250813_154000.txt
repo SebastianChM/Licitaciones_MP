@@ -1,0 +1,27 @@
+DESKTOP-QIPV142 – 2025-08-13 15:40:00.576329
+Traceback (most recent call last):
+  File "C:\Users\Joseph\OneDrive - Sebastian Chirino, Engineering, Architecture S.A.U\Licitaciones_MP\3. SCRIPTS\etapa4_joseph.py", line 311, in <module>
+    main()
+    ~~~~^^
+  File "C:\Users\Joseph\OneDrive - Sebastian Chirino, Engineering, Architecture S.A.U\Licitaciones_MP\3. SCRIPTS\etapa4_joseph.py", line 248, in main
+    df_raw = pd.read_excel(RUTA_ENRIQ, dtype=str)
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\pandas\io\excel\_base.py", line 495, in read_excel
+    io = ExcelFile(
+        io,
+    ...<2 lines>...
+        engine_kwargs=engine_kwargs,
+    )
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\pandas\io\excel\_base.py", line 1550, in __init__
+    ext = inspect_excel_format(
+        content_or_path=path_or_buffer, storage_options=storage_options
+    )
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\pandas\io\excel\_base.py", line 1402, in inspect_excel_format
+    with get_handle(
+         ~~~~~~~~~~^
+        content_or_path, "rb", storage_options=storage_options, is_text=False
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ) as handle:
+    ^
+  File "C:\Users\Joseph\AppData\Local\Programs\Python\Python313\Lib\site-packages\pandas\io\common.py", line 882, in get_handle
+    handle = open(handle, ioargs.mode)
+FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\Joseph\\OneDrive - Sebastian Chirino, Engineering, Architecture S.A.U\\Licitaciones_MP\\4. DATA\\2. OUTPUT\\4. ENRIQUECIDO\\Licitaciones_Enriquecidas.xlsx'

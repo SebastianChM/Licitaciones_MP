@@ -1,0 +1,9 @@
+LAPTOP-9BM3EJIT – 2025-08-04 17:36:10.223449
+Traceback (most recent call last):
+  File "C:\Users\josep\OneDrive - Sebastian Chirino, Engineering, Architecture S.A.U\Licitaciones_MP\5. TESTS\etapa4.py", line 183, in <module>
+    main()
+    ~~~~^^
+  File "C:\Users\josep\OneDrive - Sebastian Chirino, Engineering, Architecture S.A.U\Licitaciones_MP\5. TESTS\etapa4.py", line 175, in main
+    ws["C2"].value = f"Generado: {dt.datetime.now():%Y-%m-%d %H:%M}"
+                                  ^^^^^^^^^^^
+AttributeError: 'Timestamp' object has no attribute 'datetime'
