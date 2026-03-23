@@ -46,9 +46,10 @@ class Config(BaseSettings):
     PRESENTACION_INCREMENTAL_DIR: Path = OUTPUT_PATH / "5. PRESENTACION" / "INCREMENTALES"
     
     # Archivos Maestros
-    # MULTI-AREA PASO 2: Añadir propiedad AREAS_DISPONIBLES que escanea hojas '06-FILTROS-*'
-    # del PIVOT_MAESTRO y retorna dict {id_area: nombre_display} dinámicamente.
-    # Ver PLAN_MULTI_AREA.md § 5.1 para la implementación exacta.
+    # PASO 2.1 — Añadir: @property AREAS_DISPONIBLES(self) -> dict[str, str]
+    #            Lee hojas '06-FILTROS-*', usa '07-AREAS' para nombres display.
+    #            Fallback final: {"TI": "TI / Tecnología"} si el PIVOT no existe.
+    # PASO 2.2 — Modificar: validar_estructura() → exigir al menos una hoja '06-FILTROS-*'
     @property
     def PIVOT_MAESTRO(self) -> Path:
         return self.PIVOT_DIR / "PIVOT_MAESTRO.xlsx"
@@ -117,6 +118,7 @@ class Config(BaseSettings):
         if not self.PIVOT_MAESTRO.exists():
             logging.warning(f"⚠️ Archivo maestro faltante: {self.PIVOT_MAESTRO}")
             return False
+        # PASO 2.2 — Verificar también que exista al menos una hoja '06-FILTROS-*'
         return True
     
     def cargar_desde_pivot(self, ruta_pivot: Optional[Path] = None) -> Dict[str, str]:

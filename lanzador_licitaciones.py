@@ -45,10 +45,12 @@ class LanzadorLicitaciones:
         self.setup_ui()
         self._actualizar_checks()
     
-    # MULTI-AREA PASO 5a: Añadir self.vars_areas: dict[str, tk.BooleanVar] aquí
-    # MULTI-AREA PASO 5b: Añadir método _cargar_areas_disponibles() que lee el PIVOT
-    # MULTI-AREA PASO 5c: Añadir método _get_areas_seleccionadas() -> list[str]
-    # MULTI-AREA PASO 5d: Añadir método _crear_area_en_pivot() para el asistente
+    # PASO 5.1 — Añadir atributo: self.vars_areas: dict[str, tk.BooleanVar] = {}
+    # PASO 5.2 — Añadir método: _cargar_areas_disponibles() → crea BooleanVar por área
+    # PASO 5.3 — Añadir método: _get_areas_seleccionadas() -> list[str]
+    # PASO 5.4 — Añadir en setup_ui(): sección checkboxes dinámicos (visible si 2+ áreas)
+    #            + botón "➕ Gestionar" que invoca _crear_area_en_pivot()
+    # PASO 5.5 — Añadir método: _crear_area_en_pivot() → wizard Toplevel + openpyxl
     def setup_ui(self):
         """Configurar interfaz de usuario"""
         # Frame principal

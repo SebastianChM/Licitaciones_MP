@@ -75,6 +75,7 @@ class FiltradorLicitaciones(BaseStage):
     
     def _validar_prerequisitos(self):
         self.logger.subsection("Validando prerequisitos")
+        # PASO 3.0 — Cambiar hojas_requeridas: ['06-FILTROS'] → ['06-FILTROS-TI']
         valido, mensaje = validar_archivo_excel(self.config.PIVOT_MAESTRO, debe_existir=True, hojas_requeridas=['06-FILTROS'])
         if not valido:
             raise FileNotFoundError(f"PIVOT_MAESTRO: {mensaje}")
@@ -96,12 +97,12 @@ class FiltradorLicitaciones(BaseStage):
         self.logger.info(f"[OK] {len(df):,} licitaciones, {len(df.columns)} columnas")
         return df
     
-    # MULTI-AREA PASO 3a: Añadir _cargar_filtros_globales() que lee '06-EXCL-GLOBALES'
-    # MULTI-AREA PASO 3b: Modificar _cargar_filtros(area='TI') para leer '06-FILTROS-{area}'
-    #                     y fusionar con exclusiones globales
+    # PASO 3.1 — Añadir: _leer_hoja_filtros(self, hoja: str) -> dict  (extrae lógica de lectura repetida)
+    # PASO 3.2 — Añadir: _cargar_filtros_globales(self) -> dict  (lee '06-EXCL-GLOBALES')
+    # PASO 3.3 — Modificar: _cargar_filtros(self, area: str = "TI") → fusiona globales + área
     def _cargar_filtros(self):
         self.logger.subsection("Cargando filtros desde PIVOT")
-        # TODO: cambiar sheet_name a '06-FILTROS-{area}' cuando llegue PASO 3
+        # PASO 3.3 — Cambiar sheet_name a f'06-FILTROS-{area}' al refactorizar la firma
         df = pd.read_excel(self.config.PIVOT_MAESTRO, sheet_name='06-FILTROS', header=4)
         
         def clean_valores(col_idx):
@@ -123,8 +124,10 @@ class FiltradorLicitaciones(BaseStage):
         
         return filtros
     
-    # MULTI-AREA PASO 3c: Refactorizar run() para iterar por áreas y añadir columna AREA
-    # MULTI-AREA PASO 3d: Refactorizar _generar_outputs() para multi-hoja (RESUMEN + una por área)
+    # PASO 3.4 — Modificar: run() → loop por áreas, añadir df["ÁREA"] = area por iteración
+    #            areas = context.flags.get("areas_seleccionadas", ["TI"])
+    # PASO 3.5 — Modificar: _generar_outputs(self, resultados: dict[str, pd.DataFrame])
+    #            Genera Excel multi-hoja: "RESUMEN" (todo concatenado) + una pestaña por área
     def _aplicar_filtrado(self, df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame]:
         self.logger.subsection("Aplicando filtrado")
         df = self._preparar_campos_normalizados(df.copy())

@@ -65,6 +65,8 @@ class VerificadorEntorno:
     def _check_pivot(self) -> ResultadoCheck:
         pivot = self._base / "config_pivot" / "PIVOT_MAESTRO.xlsx"
         ok = pivot.is_file()
+        # PASO 6.1 — Verificar también que exista al menos una hoja '06-FILTROS-*'
+        #            Usar openpyxl.load_workbook(read_only=True) para no modificar el archivo
         return ResultadoCheck(
             nombre="PIVOT_MAESTRO.xlsx",
             ok=ok,

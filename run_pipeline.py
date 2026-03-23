@@ -356,7 +356,9 @@ def main():
         action='version',
         version=f'Pipeline Licitaciones v{__version__}'
     )
-    
+    # PASO 4.1 — Añadir argumento --areas (type=str, nargs='+', default=["TI"])
+    #            Antes de pipeline.ejecutar(): context.flags["areas_seleccionadas"] = args.areas
+
     args = parser.parse_args()
     
     # Validar etapas
