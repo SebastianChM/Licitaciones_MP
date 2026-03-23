@@ -1,4 +1,113 @@
 {
+    // ── Entorno Python ───────────────────────────────────────────
     "python.defaultInterpreterPath": "c:\\Licitaciones_MP\\.venv\\Scripts\\python.exe",
-    "python.terminal.activateEnvironment": true
+    "python.terminal.activateEnvironment": true,
+
+    // ── Testing (pytest) ─────────────────────────────────────────
+    "python.testing.pytestEnabled": true,
+    "python.testing.unittestEnabled": false,
+    "python.testing.pytestArgs": ["tests"],
+    "python.testing.autoTestDiscoverOnSaveEnabled": true,
+
+    // ── Coverage Gutters ─────────────────────────────────────────
+    // Genera el reporte con: python -m pytest --cov=src --cov-report=xml
+    "coverage-gutters.xmlname": "coverage.xml",
+    "coverage-gutters.showLineCoverage": true,
+    "coverage-gutters.showRulerCoverage": true,
+    "coverage-gutters.highlightdark": true,
+
+    // ── Todo Tree ────────────────────────────────────────────────
+    "todo-tree.general.tags": [
+        "TODO",
+        "FIXME",
+        "HACK",
+        "BUG",
+        "NOTA",
+        "MULTI-AREA",
+        "PASO"
+    ],
+    "todo-tree.highlights.defaultHighlight": {
+        "icon": "alert",
+        "type": "text",
+        "foreground": "#000000",
+        "background": "#FFDD00",
+        "opacity": 70,
+        "iconColour": "#FFDD00"
+    },
+    "todo-tree.highlights.customHighlight": {
+        "TODO": {
+            "icon": "check",
+            "background": "#2196F3",
+            "foreground": "#FFFFFF",
+            "iconColour": "#2196F3"
+        },
+        "FIXME": {
+            "icon": "bug",
+            "background": "#F44336",
+            "foreground": "#FFFFFF",
+            "iconColour": "#F44336"
+        },
+        "BUG": {
+            "icon": "bug",
+            "background": "#F44336",
+            "foreground": "#FFFFFF",
+            "iconColour": "#F44336"
+        },
+        "MULTI-AREA": {
+            "icon": "versions",
+            "background": "#4CAF50",
+            "foreground": "#FFFFFF",
+            "iconColour": "#4CAF50"
+        },
+        "PASO": {
+            "icon": "milestone",
+            "background": "#9C27B0",
+            "foreground": "#FFFFFF",
+            "iconColour": "#9C27B0"
+        },
+        "NOTA": {
+            "icon": "note",
+            "background": "#FF9800",
+            "foreground": "#FFFFFF",
+            "iconColour": "#FF9800"
+        },
+        "HACK": {
+            "icon": "tools",
+            "background": "#795548",
+            "foreground": "#FFFFFF",
+            "iconColour": "#795548"
+        }
+    },
+    "todo-tree.tree.showCountsInTree": true,
+    "todo-tree.tree.groupedByTag": false,
+    "todo-tree.filtering.excludeGlobs": [
+        "**/node_modules/**",
+        "**/__pycache__/**",
+        "**/.venv/**",
+        "**/data/**",
+        "**/*.pyc"
+    ],
+
+    // ── GitLens ──────────────────────────────────────────────────
+    "gitlens.codeLens.enabled": true,
+    "gitlens.currentLine.enabled": true,
+    "gitlens.hovers.currentLine.over": "line",
+    "gitlens.blame.format": "${author}, ${date} \u2022 ${message|50}",
+    "gitlens.blame.dateFormat": "DD/MM/YY",
+    "gitlens.graph.layout": "editor",
+
+    // ── Editor ───────────────────────────────────────────────────
+    "editor.rulers": [100],
+    "editor.formatOnSave": false,
+    "files.trimTrailingWhitespace": true,
+    "files.insertFinalNewline": true,
+    "editor.renderWhitespace": "trailing",
+
+    // ── Archivos a ignorar en el explorador ──────────────────────
+    "files.exclude": {
+        "**/__pycache__": true,
+        "**/*.pyc": true,
+        "**/.pytest_cache": true,
+        "**/.ruff_cache": true
+    }
 }

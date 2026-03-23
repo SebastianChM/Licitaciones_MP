@@ -46,6 +46,9 @@ class Config(BaseSettings):
     PRESENTACION_INCREMENTAL_DIR: Path = OUTPUT_PATH / "5. PRESENTACION" / "INCREMENTALES"
     
     # Archivos Maestros
+    # MULTI-AREA PASO 2: Añadir propiedad AREAS_DISPONIBLES que escanea hojas '06-FILTROS-*'
+    # del PIVOT_MAESTRO y retorna dict {id_area: nombre_display} dinámicamente.
+    # Ver PLAN_MULTI_AREA.md § 5.1 para la implementación exacta.
     @property
     def PIVOT_MAESTRO(self) -> Path:
         return self.PIVOT_DIR / "PIVOT_MAESTRO.xlsx"

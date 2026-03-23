@@ -45,6 +45,10 @@ class LanzadorLicitaciones:
         self.setup_ui()
         self._actualizar_checks()
     
+    # MULTI-AREA PASO 5a: Añadir self.vars_areas: dict[str, tk.BooleanVar] aquí
+    # MULTI-AREA PASO 5b: Añadir método _cargar_areas_disponibles() que lee el PIVOT
+    # MULTI-AREA PASO 5c: Añadir método _get_areas_seleccionadas() -> list[str]
+    # MULTI-AREA PASO 5d: Añadir método _crear_area_en_pivot() para el asistente
     def setup_ui(self):
         """Configurar interfaz de usuario"""
         # Frame principal
