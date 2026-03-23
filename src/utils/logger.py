@@ -47,8 +47,11 @@ class ProjectLogger:
         file_handler.setFormatter(file_formatter)
         self.logger.addHandler(file_handler)
         
-        # Handler para consola
-        console_handler = logging.StreamHandler(sys.stdout)
+        # Handler para consola — con errors='replace' para tolerancia en terminales Windows cp1252
+        console_stream = open(sys.stdout.fileno(), mode='w',
+                              encoding=sys.stdout.encoding or 'utf-8',
+                              errors='replace', closefd=False, buffering=1)
+        console_handler = logging.StreamHandler(console_stream)
         console_handler.setLevel(nivel)
         console_formatter = logging.Formatter(
             '%(asctime)s | %(levelname)-8s | %(message)s',

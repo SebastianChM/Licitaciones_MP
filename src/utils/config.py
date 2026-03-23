@@ -77,6 +77,7 @@ class Config(BaseSettings):
     ETAPA3_DELAY_SEGUNDOS: float = 1.5
     ETAPA3_MAX_REINTENTOS: int = 3
     ETAPA3_TIMEOUT: int = 40
+    ETAPA3_CHECKPOINT_RETENTION_DAYS: int = 7
     
     # ==================== PARÁMETROS ETAPA 4 - REPORTE ====================
     ETAPA4_VALOR_UTM: int = 65000
@@ -116,24 +117,67 @@ class Config(BaseSettings):
         return True
     
     def cargar_desde_pivot(self, ruta_pivot: Optional[Path] = None) -> Dict[str, str]:
-        """Carga parámetros dinámicos (filtros de analistas) desde PIVOT_MAESTRO."""
+        """Carga parámetros dinámicos desde la hoja 02-CONFIG del PIVOT_MAESTRO.
+
+        Detecta automáticamente las columnas de nombre y valor buscando cabeceras
+        conocidas en las primeras 10 filas del Excel:
+          - Columna nombre: 'NOMBRE', 'CAMPO', 'CLAVE', 'KEY'
+          - Columna valor:  'PARÁMETRO', 'PARAMETRO', 'VALOR', 'VALUE'
+
+        Esta convención cubre el formato actual del PIVOT_MAESTRO (NOMBRE + PARÁMETRO)
+        y formatos alternativos (Parámetro + Valor).
+        """
         import openpyxl
         ruta = ruta_pivot or self.PIVOT_MAESTRO
-        
+
+        _HEADERS_NOMBRE = {'nombre', 'campo', 'clave', 'key'}
+        _HEADERS_VALOR  = {'parámetro', 'parametro', 'valor', 'value'}
+
         try:
             wb = openpyxl.load_workbook(ruta, data_only=True)
             if '02-CONFIG' not in wb.sheetnames:
+                logging.warning("Hoja '02-CONFIG' no encontrada en PIVOT_MAESTRO")
                 return {}
             ws = wb['02-CONFIG']
-            
-            config_dict = {}
-            for row in ws.iter_rows(min_row=5, max_row=50, values_only=True):
-                if not row or len(row) < 5:
-                    continue
-                nombre, valor = row[1], row[4]
-                if nombre and valor:
-                    config_dict[str(nombre).strip()] = str(valor).strip()
+
+            col_nombre: Optional[int] = None
+            col_valor: Optional[int] = None
+            header_row: Optional[int] = None
+
+            for row in ws.iter_rows(max_row=10):
+                for cell in row:
+                    if cell.value is None:
+                        continue
+                    normalizado = str(cell.value).strip().lower()
+                    if normalizado in _HEADERS_NOMBRE and col_nombre is None:
+                        col_nombre = cell.column
+                        header_row = cell.row
+                    elif normalizado in _HEADERS_VALOR and col_valor is None:
+                        col_valor = cell.column
+                        header_row = cell.row
+                if col_nombre and col_valor:
+                    break
+
+            if col_nombre is None or col_valor is None:
+                logging.warning(
+                    "No se encontraron columnas nombre/valor en 02-CONFIG. "
+                    "Cabeceras esperadas: NOMBRE + PARÁMETRO (o equivalentes)."
+                )
+                return {}
+
+            config_dict: Dict[str, str] = {}
+            for row in ws.iter_rows(min_row=(header_row or 0) + 1, max_row=100):
+                nombre_cell = next((c for c in row if c.column == col_nombre), None)
+                valor_cell  = next((c for c in row if c.column == col_valor), None)
+                if nombre_cell and valor_cell:
+                    nombre = nombre_cell.value
+                    valor  = valor_cell.value
+                    if nombre and valor is not None:
+                        config_dict[str(nombre).strip()] = str(valor).strip()
+
+            wb.close()
             return config_dict
+
         except Exception as e:
             logging.error(f"Error cargando configuración desde PIVOT: {e}")
             return {}

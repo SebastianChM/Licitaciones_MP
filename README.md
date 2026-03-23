@@ -1,337 +1,281 @@
-# 🚀 Licitaciones Mercado Público - Pipeline Automatizado
+# Licitaciones Mercado Público — Pipeline Automatizado
 
-Sistema automatizado para filtrar y enriquecer licitaciones del Mercado Público de Chile, reduciendo ~12,000 licitaciones diarias a ~200 relevantes para Sebastian Chirino.
+![CI](https://github.com/MP-Consulting/licitaciones-mp/actions/workflows/ci.yml/badge.svg)
+![Coverage](https://codecov.io/gh/MP-Consulting/licitaciones-mp/branch/main/graph/badge.svg)
+![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13-blue)
+![Version](https://img.shields.io/badge/version-5.0.0-green)
 
-**Versión**: 4.0.0 - Sistema Incremental  
-**Última actualización**: 25 Octubre 2025
+> **Nota:** reemplaza `MP-Consulting/licitaciones-mp` con la ruta real del repositorio en GitHub.
+
+Sistema automatizado para filtrar y enriquecer licitaciones del Mercado Público de Chile, reduciendo ~12 000 licitaciones diarias a ~200 relevantes para Sebastian Chirino.
+
+**Versión**: 5.0.0  
+**Última actualización**: Marzo 2026
 
 ---
 
-## ⚡ INICIO RÁPIDO
+## Inicio rápido
 
 ```bash
-# 0. IMPORTANTE: Configurar API Key de Mercado Público primero
-#    Ver: docs/NOTAS_API_MERCADO_PUBLICO.md
-#    Agregar en: config_pivot/PIVOT_MAESTRO.xlsx -> Hoja 01-PARAMETROS
+# 1. Crear y activar entorno virtual
+python -m venv .venv
+.venv\Scripts\activate          # Windows
+# source .venv/bin/activate     # macOS/Linux
 
-# 1. Instalar dependencias
+# 2. Instalar dependencias
 pip install -r requirements.txt
 
-# 2. Pipeline completo (primera vez)
+# 3. Copiar la plantilla de variables de entorno y completar los secretos
+copy .env.example .env
+# Editar .env: agregar LICIT_MERCADO_PUBLICO_TICKET con tu API Key
+
+# 4. Ejecutar el pipeline completo
 python run_pipeline.py
 
-# 3. 🆕 Análisis incremental (uso diario)
+# 5. (Uso diario) Solo análisis incremental
 python src/sistema_incremental.py
 
-# 4. 🆕 Actualizar reportes preservando trabajo manual
-python src/reporte_incremental.py "ruta/archivo.xlsx"
-
-# 5. Ver resultados en:
-data/2. OUTPUT/5. PRESENTACION/Reporte_Licitaciones_*.xlsx
+# 6. (Uso diario) Actualizar reporte preservando formato manual
+python src/reporte_incremental.py
 ```
+
+Resultados en `data/2. OUTPUT/5. PRESENTACION/`.
 
 ---
 
-## 📁 ESTRUCTURA DEL PROYECTO
+## Estructura del proyecto
 
 ```
 Licitaciones_MP/
+├── run_pipeline.py            # Orquestador principal + CLI
+├── requirements.txt
+├── .env.example               # Plantilla de variables de entorno
 │
-├── run_pipeline.py          ⭐ Script principal
-├── requirements.txt         📦 Dependencias
-├── README.md               📖 Esta documentación
+├── src/
+│   ├── core/
+│   │   ├── context.py         # PipelineContext — estado compartido entre etapas
+│   │   └── contracts.py       # BaseStage, StageResult
+│   │
+│   ├── etapas/
+│   │   ├── etapa0.py          # Descarga automática desde Mercado Público
+│   │   ├── etapa1.py          # Auditoría de taxonomía vs PIVOT_MAESTRO
+│   │   ├── etapa2.py          # Filtrado inteligente (vectorizado con str.contains)
+│   │   ├── etapa3.py          # Enriquecimiento vía API (checkpoint + retry)
+│   │   ├── etapa4.py          # Reporte ejecutivo (conversión de monedas)
+│   │   └── etapa5.py          # Actualización incremental (preserva formato)
+│   │
+│   ├── utils/
+│   │   ├── config.py          # Configuración pydantic-settings (prefijo LICIT_)
+│   │   ├── logger.py          # Sistema de logging con secciones y progreso
+│   │   ├── alerts.py          # AlertManager con sinks pluggables (consola + archivo)
+│   │   ├── http.py            # HTTPClient con retry/backoff y respeto a Retry-After
+│   │   ├── observability.py   # ObservabilityRules + RunSummaryReporter
+│   │   ├── analizador_incremental.py  # Detección de cambios y sugerencias de filtros
+│   │   ├── text_processing.py # Normalización, similitud, palabras clave
+│   │   └── file_ops.py        # Helpers de lectura/escritura de Excel
+│   │
+│   ├── sistema_incremental.py # Entrada standalone para análisis incremental
+│   └── reporte_incremental.py # Entrada standalone para actualización de reportes
 │
-├── src/                    🔧 Código fuente
-│   ├── etapas/            
-│   │   ├── etapa1.py      # Auditoría taxonomía (450 líneas)
-│   │   ├── etapa2.py      # Filtrado inteligente (620 líneas)
-│   │   ├── etapa3.py      # Enriquecimiento API (550 líneas)
-│   │   └── etapa4.py      # Reporte ejecutivo (650 líneas)
-│   ├── sistema_incremental.py    🆕 # Sistema de análisis incremental
-│   ├── reporte_incremental.py    🆕 # Generador reportes preservando formato
-│   └── utils/
-│       ├── config.py      # Configuración centralizada
-│       ├── logger.py      # Sistema de logging
-│       ├── analizador_incremental.py  🆕 # Núcleo análisis inteligente
-│       ├── text_processing.py
-│       └── file_ops.py
+├── config_pivot/
+│   └── PIVOT_MAESTRO.xlsx     # Taxonomía, filtros y parámetros del sistema
 │
-├── config_pivot/          ⚙️ Configuración
-│   └── PIVOT_MAESTRO.xlsx # Cerebro del sistema
+├── data/
+│   ├── 1. INPUT/              # Licitacion_Publicada.xlsx (entrada)
+│   └── 2. OUTPUT/
+│       ├── 1. LOGS/           # Logs por ejecución
+│       ├── 2. HALLAZGOS/      # Nuevos valores detectados por etapa1
+│       ├── 2. HISTORICO/      # Reportes históricos
+│       ├── 3. FILTRADO/       # Salida de etapa2
+│       ├── 4. ENRIQUECIDO/    # Salida de etapa3
+│       └── 5. PRESENTACION/   # Reportes finales (etapa4 y etapa5)
 │
-├── data/                  🗄️ Datos
-│   ├── 1. INPUT/         # Entrada: Licitacion_Publicada.xlsx
-│   └── 2. OUTPUT/        # Salidas del pipeline
-│
-├── docs/                  📚 Documentación
-│   ├── QUICKSTART.md     # Guía inicio rápido
-│   ├── CHANGELOG.md      # Historial cambios
-│   ├── PROXIMOS_PASOS.md # Roadmap futuro
-│   └── NOTAS_API_MERCADO_PUBLICO.md  # ⚠️ Comportamiento API
-│       ├── 1. LOGS/
-│       ├── 2. HALLAZGOS/
-│       ├── 3. FILTRADO/
-│       ├── 4. ENRIQUECIDO/
-│       └── 5. PRESENTACION/
-│
-├── docs/                  📚 Documentación adicional
-├── scripts/               🔧 Scripts auxiliares
-├── tests/                 🧪 Tests unitarios
-└── _OLD/                  🗑️ Archivos legacy
+└── tests/
+    └── unit/                  # Tests unitarios (pytest)
 ```
 
 ---
 
-## 🎯 LAS 4 ETAPAS DEL PIPELINE
+## Las 6 etapas del pipeline
 
-### **Etapa 1: Auditoría de Taxonomía**
-Detecta valores nuevos que no existen en PIVOT_MAESTRO.
+| # | Clase | Descripción | Entrada → Salida |
+|---|-------|-------------|------------------|
+| 0 | `DescargadorLicitaciones` | Descarga automática desde la API de Mercado Público | API → `INPUT/Licitacion_Publicada.xlsx` |
+| 1 | `AuditorTaxonomia` | Detecta valores de taxonomía no contemplados en PIVOT_MAESTRO | Publicada.xlsx → `HALLAZGOS_*.xlsx` |
+| 2 | `FiltradorLicitaciones` | Reduce ~12 000 a ~200 usando filtros inclusión/exclusión/bypass vectorizados | Publicada.xlsx → `Filtradas_*.xlsx` |
+| 3 | `EnriquecedorAPI` | Consulta la API de Mercado Público (checkpoint automático, retry, rate-limit) | Filtradas.xlsx → `Enriquecidas_*.xlsx` |
+| 4 | `GeneradorReporte` | Reporte ejecutivo con conversión UTM/USD→CLP, colores y métricas | Enriquecidas.xlsx → `Reporte_*.xlsx` |
+| 5 | `GeneradorReporteIncremental` | Actualiza reporte existente preservando formato y colores manuales | Reporte.xlsx → Reporte actualizado in-place |
 
-- **Entrada**: `data/1. INPUT/Licitacion_Publicada.xlsx`
-- **Proceso**: Compara contra valores conocidos en PIVOT_MAESTRO
-- **Salida**: `data/2. OUTPUT/2. HALLAZGOS/HALLAZGOS_*.xlsx`
-
-### **Etapa 2: Filtrado Inteligente**
-Reduce 12,000 licitaciones a ~200 relevantes.
-
-- **Entrada**: `Licitacion_Publicada.xlsx`
-- **Proceso**: Aplica filtros de inclusión/exclusión desde PIVOT_MAESTRO (Hoja 06)
-- **Salida**: `data/2. OUTPUT/3. FILTRADO/Licitaciones_Filtradas_*.xlsx`
-
-### **Etapa 3: Enriquecimiento API**
-Consulta API de Mercado Público para obtener 40+ campos adicionales.
-
-- **Entrada**: `Licitaciones_Filtradas_*.xlsx`
-- **Proceso**: Rate limiting 2 req/segundo, reintentos automáticos, caché
-- **Salida**: `data/2. OUTPUT/4. ENRIQUECIDO/Licitaciones_Enriquecidas_*.xlsx`
-
-### **Etapa 4: Reporte Ejecutivo**
-Genera Excel final con formateo profesional.
-
-- **Entrada**: `Licitaciones_Enriquecidas_*.xlsx`
-- **Proceso**: Convierte UTM/USD→CLP, calcula días para cierre, formatea colores
-- **Salida**: `data/2. OUTPUT/5. PRESENTACION/Reporte_Licitaciones_*.xlsx`
+Cada etapa hereda `BaseStage` (`src/core/contracts.py`) y se comunica con el resto a través de `PipelineContext` (`src/core/context.py`).
 
 ---
 
-## 🆕 SISTEMA INCREMENTAL (v4.0)
+## Configuración
 
-### 🎯 **¿Qué es?**
-Sistema inteligente que preserva el trabajo manual de tus compañeros (colores, filtros, ordenamientos) mientras actualiza solo los datos nuevos.
+### Variables de entorno
 
-### ✨ **Funcionalidades Clave**
-- **🔍 Detección Automática**: Identifica nuevos valores en taxonomía vs PIVOT_MAESTRO
-- **👥 Preserva Trabajo Manual**: Mantiene colores, filtros y ordenamientos aplicados por compañeros
-- **➕ Solo Datos Nuevos**: Agrega únicamente licitaciones que no existían previamente
-- **🎯 Sugerencias Inteligentes**: Propone mejoras a filtros basadas en patrones detectados
-- **📊 Reportes Detallados**: Genera análisis JSON completos de todos los cambios
+La configuración usa `pydantic-settings` con prefijo `LICIT_`. Copia `.env.example` a `.env` y ajusta los valores:
 
-### 🚀 **Comandos Principales**
+```env
+# API Keys (obligatorias para etapa 0 y 3)
+LICIT_MERCADO_PUBLICO_TICKET=tu_api_key_aqui
+
+# Límites de filtrado
+LICIT_ETAPA2_MIN_AMOUNT=1000000
+LICIT_ETAPA2_MAX_AMOUNT=50000000000
+
+# Parámetros API
+LICIT_ETAPA3_DELAY_SEGUNDOS=1.5
+LICIT_ETAPA3_CHECKPOINT_RETENTION_DAYS=7
+
+# Modo prueba (limita a 100 filas)
+LICIT_TEST_MODE=false
+```
+
+Consulta `.env.example` para la lista completa documentada.
+
+### PIVOT_MAESTRO.xlsx
+
+La taxonomía y los filtros se gestionan en `config_pivot/PIVOT_MAESTRO.xlsx`:
+
+| Hoja | Contenido |
+|------|-----------|
+| `01-AUDITORIA` | Referencia para análisis incremental |
+| `02-CONFIG` | Parámetros dinámicos (cargados por `cargar_desde_pivot()`) |
+| `04-BASE` | Tabla maestra de taxonomía (Nivel 1/2/3, Genérico) |
+| `06-FILTROS` | Palabras de inclusión, exclusión y bypass por columna |
+
+Para modificar los filtros sin tocar código: editar la hoja `06-FILTROS` y re-ejecutar el pipeline.
+
+---
+
+## Opciones de ejecución
+
 ```bash
-# Análisis completo de cambios
-python src/sistema_incremental.py
-
-# Actualizar Excel preservando formato
-python src/reporte_incremental.py "archivo.xlsx"
-
-# Validar sistema completo
-python test_sistema_completo.py
-```
-
-### 📋 **Casos de Uso**
-1. **Colaboración Diaria**: Compañeros aplican colores/filtros → Sistema los preserva automáticamente
-2. **Actualización Inteligente**: Solo nuevas licitaciones se agregan, existentes se actualizan mínimamente
-3. **Mejora Continua**: Sistema detecta nuevos patrones y sugiere filtros mejorados
-4. **Auditoria Completa**: Logs detallados de todos los cambios para trazabilidad
-
-**📖 Documentación completa**: `SISTEMA_INCREMENTAL_COMPLETADO.md`
-
----
-
-## ⚙️ CONFIGURACIÓN
-
-Todo se controla desde:
-```
-config_pivot/PIVOT_MAESTRO.xlsx
-```
-
-**Hojas importantes**:
-- **Hoja 01-05**: Valores permitidos (Región, Organismo, ONU, Niveles, Genérico)
-- **Hoja 06**: FILTROS (palabras de inclusión/exclusión/bypass)
-
-Para modificar comportamiento:
-1. Abrir `PIVOT_MAESTRO.xlsx`
-2. Editar filtros en Hoja 06
-3. Guardar
-4. Ejecutar `python run_pipeline.py`
-
----
-
-## 🛠️ OPCIONES DE EJECUCIÓN
-
-### Pipeline Completo
-```bash
+# Pipeline completo (todas las etapas)
 python run_pipeline.py
-```
 
-### Etapas Específicas
-```bash
-# Solo auditoría y filtrado
+# Etapas específicas
 python run_pipeline.py --etapas 1 2
+python run_pipeline.py --etapas 3 4 5
 
-# Solo enriquecimiento y reporte
-python run_pipeline.py --etapas 3 4
-```
+# Archivo de entrada custom
+python run_pipeline.py --archivo "ruta/alternativa.xlsx"
 
-### Con Archivo Custom
-```bash
-python run_pipeline.py --entrada "ruta/archivo.xlsx"
-```
+# Sin descarga (usar archivo ya existente)
+python run_pipeline.py --no-descargar
 
-### Etapas Individuales
-```bash
-python -m src.etapas.etapa1
+# Etapa individual en standalone
 python -m src.etapas.etapa2
-python -m src.etapas.etapa3
-python -m src.etapas.etapa4
 ```
 
 ---
 
-## 📊 ESTADÍSTICAS DEL PROYECTO
+## Observabilidad y alertas
 
-| Métrica | Valor |
-|---------|-------|
-| Líneas de código | 3,570 |
-| Duplicación | <5% |
-| Módulos Python | 9 |
-| Cobertura tests | Pendiente |
-| Versión | 3.0.0 |
+Cada ejecución del pipeline genera automáticamente:
+
+- **Log de texto** en `data/2. OUTPUT/1. LOGS/`
+- **Resumen JSON** en `temp/logs/runs/run_{uuid}.json` con métricas de cada etapa
+- **Archivo de alertas** `temp/logs/alerts_{run_id}.jsonl` con alertas de negocio
+
+
+Las reglas de negocio evaluadas automáticamente incluyen: tasa de filtrado inusualmente baja, cero registros procesados, errores de API por encima del umbral, entre otras.
 
 ---
 
-## 🐛 SOLUCIÓN DE PROBLEMAS
+## Solución de problemas
 
-### 🔑 Etapa 3 con 0% de éxito - FALTA API KEY
-**SÍNTOMA**: Todos los requests fallan con HTTP 500, mensaje "peticiones simultáneas"
-
-**CAUSA**: No está configurada la API Key de Mercado Público
-
-**SOLUCIÓN**:
-1. Obtener API Key en https://www.mercadopublico.cl/Home/Ayuda
-2. Abrir `config_pivot/PIVOT_MAESTRO.xlsx`
-3. Ir a hoja `01-PARAMETROS`
-4. Agregar fila: `API Key` | `<tu_clave>`
-5. Guardar y ejecutar de nuevo
-
-Ver guía completa: [docs/NOTAS_API_MERCADO_PUBLICO.md](docs/NOTAS_API_MERCADO_PUBLICO.md)
-
-### ⚠️ Muchos errores HTTP 500 en Etapa 3 (CON API Key configurada)
-**ESTO ES NORMAL**. Ver documentación completa: [docs/NOTAS_API_MERCADO_PUBLICO.md](docs/NOTAS_API_MERCADO_PUBLICO.md)
-
-- 10-30% de errores HTTP 500 es comportamiento esperado del API de Mercado Público
-- El sistema reintenta 3 veces con delays
-- Tasa de éxito real: 50-80% es normal, >80% es excelente
-- Solución: Ejecutar en horarios de baja demanda (2am-6am, fines de semana)
-
-### Error: "No se encuentra PIVOT_MAESTRO.xlsx"
-```bash
-python -c "from src.utils import Config; c = Config(); print(c.PIVOT_MAESTRO)"
+### Etapa 3 con 0% de éxito — falta API Key
 ```
+# Síntoma: requests fallan con HTTP 500 ("peticiones simultáneas")
+# Solución: agregar en .env
+LICIT_MERCADO_PUBLICO_TICKET=tu_clave_aqui
+```
+Obtén la API Key en [mercadopublico.cl](https://www.mercadopublico.cl/Home/Ayuda).
 
-### Error: "ModuleNotFoundError: No module named 'src'"
+### 10-30% de errores HTTP 500 en etapa 3 (con API Key configurada)
+Esto es comportamiento normal de la API de Mercado Público. El sistema reintenta automáticamente 3 veces con backoff. Ejecutar en horarios de baja demanda (madrugada, fines de semana) mejora la tasa de éxito.
+
+### `ModuleNotFoundError: No module named 'utils'`
+Ejecutar desde la raíz del proyecto:
 ```bash
-# Ejecutar desde la raíz del proyecto
-cd C:\Users\Sebastian\Desktop\SCRIPTS\Licitaciones_MP
+cd C:\Licitaciones_MP
 python run_pipeline.py
 ```
 
-### Error: "No se encontró archivo de entrada"
+### `FileNotFoundError: PIVOT_MAESTRO.xlsx`
 ```bash
-# Verificar que existe
-dir "data\1. INPUT\Licitacion_Publicada.xlsx"
+python -c "from src.utils.config import Config; c = Config(); print(c.PIVOT_MAESTRO)"
 ```
 
-### Ver logs detallados
+---
+
+## Tests
+
 ```bash
-type "data\2. OUTPUT\1. LOGS\pipeline_completo_*.log"
-```
-
----
-
-## 📈 MÉTRICAS DE RENDIMIENTO
-
-- **Etapa 1** (Auditoría): ~5 segundos para 12,000 registros
-- **Etapa 2** (Filtrado): ~10 segundos (reduce 12k → 200)
-- **Etapa 3** (Enriquecimiento): ~2 minutos (200 licitaciones × 2 req/seg)
-- **Etapa 4** (Reporte): ~5 segundos
-- **TOTAL**: ~3 minutos para pipeline completo
-
----
-
-## 🔄 CHANGELOG v3.0 (24 Oct 2025)
-
-### ✅ Cambios Mayores
-- ✅ Refactorización completa a arquitectura modular
-- ✅ Eliminación de 40% de duplicación de código
-- ✅ Configuración centralizada en `config.py`
-- ✅ Sistema de logging profesional
-- ✅ Pipeline orquestado con `run_pipeline.py`
-- ✅ Estructura super limpia (4 archivos raíz, 7 carpetas)
-
-### 🗂️ Organización
-- ✅ Carpetas renombradas: `2. PIVOT/` → `config_pivot/`, `4. DATA/` → `data/`
-- ✅ Documentación consolidada en README.md único
-- ✅ 50+ archivos legacy movidos a `_OLD/`
-- ✅ 38 carpetas OUTPUT antiguas eliminadas
-- ✅ Carpetas vacías eliminadas
-
-### 📦 Dependencias
-```
-pandas>=2.0.0
-openpyxl>=3.1.0
-requests>=2.31.0
-python-Levenshtein>=0.21.0
-pytz>=2023.3
-```
-
----
-
-## 📞 SOPORTE
-
-- **Documentación adicional**: Ver carpeta `docs/`
-- **Código legacy**: Ver carpeta `_OLD/` (referencia)
-- **Issues**: Contactar equipo MP
-
----
-
-## 🎓 PARA DESARROLLADORES
-
-### Agregar Nueva Etapa
-1. Crear `src/etapas/etapaN.py`
-2. Seguir patrón de etapas existentes
-3. Usar utilidades de `src/utils/`
-4. Agregar al orquestador `run_pipeline.py`
-
-### Modificar Filtros
-1. Editar `config_pivot/PIVOT_MAESTRO.xlsx` (Hoja 06)
-2. No tocar código Python
-3. Ejecutar pipeline
-
-### Ejecutar Tests
-```bash
+# Todos los tests
 pytest tests/ -v
+
+# Con cobertura (umbral mínimo: 80%)
+pytest tests/ -v --cov=src --cov-report=term-missing --cov-fail-under=80
+
+# Solo un módulo
+pytest tests/unit/test_text_processing.py -v
+```
+
+**Cobertura actual: 81%** (339 tests en verde)
+
+---
+
+## Métricas de rendimiento (referencia)
+
+| Etapa | Tiempo estimado | Observaciones |
+|-------|----------------|---------------|
+| 0 — Descarga | ~30 s | Depende de la red |
+| 1 — Auditoría | ~5 s | Para 12 000 registros |
+| 2 — Filtrado | ~3 s | Vectorizado con `str.contains` |
+| 3 — Enriquecimiento | ~3 min | 200 licitaciones × 1.5 s/req |
+| 4 — Reporte | ~5 s | |
+| 5 — Incremental | ~10 s | Solo diff sobre reporte existente |
+| **Total** | **~4 min** | |
+
+---
+
+## Para desarrolladores
+
+### Añadir una etapa nueva
+
+1. Crear `src/etapas/etapaN.py` heredando `BaseStage`:
+   ```python
+   from core.contracts import BaseStage, StageResult
+   from core.context import PipelineContext
+
+   class MiEtapa(BaseStage):
+       @property
+       def name(self) -> str:
+           return "mi_etapa"
+
+       def validate_inputs(self, context: PipelineContext) -> bool:
+           ...
+
+       def run(self, context: PipelineContext) -> StageResult:
+           self.bind(context)
+           ...
+   ```
+2. Registrar en `run_pipeline.py` en el método `_construir_etapas()`.
+
+### Agregar una regla de observabilidad
+
+Editar `src/utils/observability.py` añadiendo un método en `ObservabilityRules` con la firma:
+```python
+def check_mi_regla(self, metrics: dict) -> Optional[Alert]:
 ```
 
 ---
 
-## 📜 LICENCIA
+## Licencia
 
-Propietario - Sebastian Chirino  
+Propietario — Sebastian Chirino  
 © 2025 Todos los derechos reservados
-
----
-
-**¡Pipeline listo para producción!** 🚀
-
-Para empezar: `python run_pipeline.py`

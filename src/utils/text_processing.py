@@ -206,7 +206,7 @@ def contiene_palabras_clave(
         return any(matches)
 
 
-def truncar_texto(texto: str, max_length: int = 100, sufijo: str = "...") -> str:
+def truncar_texto(texto: Optional[str], max_length: int = 100, sufijo: str = "...") -> str:
     """
     Trunca texto a una longitud máxima.
     
@@ -218,8 +218,10 @@ def truncar_texto(texto: str, max_length: int = 100, sufijo: str = "...") -> str
     Returns:
         str: Texto truncado
     """
+    if texto is None:
+        return ""
     if not texto or len(texto) <= max_length:
-        return texto
+        return str(texto) if texto else ""
     
     return texto[:max_length - len(sufijo)] + sufijo
 

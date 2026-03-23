@@ -172,6 +172,7 @@ class RunSummaryReporter:
         summary_path = log_dir / f"run_{self.run_id}.json"
         
         with open(summary_path, "w", encoding="utf-8") as f:
-            f.write(json.dumps(resumen, indent=4, ensure_ascii=False))
+            f.write(json.dumps(resumen, indent=4, ensure_ascii=False,
+                               default=lambda o: o.isoformat() if hasattr(o, 'isoformat') else str(o)))
             
         return summary_path

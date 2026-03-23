@@ -1,11 +1,11 @@
 # Filtrado inteligente de licitaciones usando PIVOT_MAESTRO
 
+import re
 import pandas as pd
 from pathlib import Path
 from typing import Tuple
 from datetime import datetime
-from utils import (normalizar_texto, contiene_palabras_clave,
-                       validar_archivo_excel, encontrar_columna, guardar_excel_con_formato,
+from utils import (normalizar_texto, validar_archivo_excel, encontrar_columna, guardar_excel_con_formato,
                        obtener_timestamp, leer_excel_con_header_dinamico)
 from core.contracts import BaseStage, StageResult
 from core.context import PipelineContext
@@ -156,49 +156,67 @@ class FiltradorLicitaciones(BaseStage):
         return df
     
     def _aplicar_inclusion(self, df: pd.DataFrame) -> pd.DataFrame:
-        def cumple(row):
-            campos = [("Nombre Adquisición (norm)", "nombre"), ("Descripción (norm)", "nombre"),
-                     ("Nivel 1 (norm)", "nivel1"), ("Nivel 2 (norm)", "nivel2"), ("Nivel 3 (norm)", "nivel3")]
-            for campo, key in campos:
-                if campo in df.columns and pd.notna(row[campo]):
-                    if contiene_palabras_clave(str(row[campo]), self.filtros["incluir"][key]):
-                        return True
-            return False
-        
-        df_incluidas = df[df.apply(cumple, axis=1)]
+        campos_map = [
+            ("Nombre Adquisición (norm)", "nombre"),
+            ("Descripción (norm)", "nombre"),
+            ("Nivel 1 (norm)", "nivel1"),
+            ("Nivel 2 (norm)", "nivel2"),
+            ("Nivel 3 (norm)", "nivel3"),
+        ]
+        mask = pd.Series(False, index=df.index)
+        for col, key in campos_map:
+            palabras = self.filtros["incluir"].get(key, [])
+            if col not in df.columns or not palabras:
+                continue
+            pattern = '|'.join(re.escape(p) for p in palabras)
+            mask |= df[col].str.contains(pattern, regex=True, na=False, case=False)
+
+        df_incluidas = df[mask]
         self.logger.info(f"🔍 Inclusión: {len(df_incluidas):,}/{len(df):,}")
         return df_incluidas
     
     def _aplicar_exclusion(self, df: pd.DataFrame) -> pd.DataFrame:
-        def cumple(row):
-            campos = [("Nombre Adquisición (norm)", "nombre"), ("Descripción (norm)", "nombre"),
-                     ("Nivel 1 (norm)", "nivel1"), ("Nivel 2 (norm)", "nivel2"), ("Nivel 3 (norm)", "nivel3"),
-                     ("Genérico (norm)", "generico"), ("Organismo (norm)", "organismo"), 
-                     ("Tipo Adquisición (norm)", "valor"), ("Descripción del producto/servicio (norm)", "componente")]
-            for campo, key in campos:
-                if campo in df.columns and pd.notna(row[campo]):
-                    if contiene_palabras_clave(str(row[campo]), self.filtros["excluir"][key]):
-                        return True
-            return False
-        
-        df_excluidas = df[df.apply(cumple, axis=1)]
+        campos_map = [
+            ("Nombre Adquisición (norm)", "nombre"),
+            ("Descripción (norm)", "nombre"),
+            ("Nivel 1 (norm)", "nivel1"),
+            ("Nivel 2 (norm)", "nivel2"),
+            ("Nivel 3 (norm)", "nivel3"),
+            ("Genérico (norm)", "generico"),
+            ("Organismo (norm)", "organismo"),
+            ("Tipo Adquisición (norm)", "valor"),
+            ("Descripción del producto/servicio (norm)", "componente"),
+        ]
+        mask = pd.Series(False, index=df.index)
+        for col, key in campos_map:
+            palabras = self.filtros["excluir"].get(key, [])
+            if col not in df.columns or not palabras:
+                continue
+            pattern = '|'.join(re.escape(p) for p in palabras)
+            mask |= df[col].str.contains(pattern, regex=True, na=False, case=False)
+
+        df_excluidas = df[mask]
         self.logger.info(f"🚫 Exclusión: {len(df_excluidas):,}/{len(df):,}")
         return df_excluidas
     
     def _aplicar_bypass(self, df_excluidas: pd.DataFrame) -> pd.DataFrame:
         if not self.filtros["bypass"] or len(df_excluidas) == 0:
             return pd.DataFrame()
-        
-        def cumple(row):
-            campos = ["Nombre Adquisición (norm)", "Descripción (norm)", "Descripción del producto/servicio (norm)", 
-                     "Organismo (norm)", "Tipo Adquisición (norm)"]
-            for campo in campos:
-                if campo in df_excluidas.columns and pd.notna(row[campo]):
-                    if contiene_palabras_clave(str(row[campo]), self.filtros["bypass"]):
-                        return True
-            return False
-        
-        df_bypass = df_excluidas[df_excluidas.apply(cumple, axis=1)]
+
+        pattern = '|'.join(re.escape(p) for p in self.filtros["bypass"])
+        cols = [
+            "Nombre Adquisición (norm)",
+            "Descripción (norm)",
+            "Descripción del producto/servicio (norm)",
+            "Organismo (norm)",
+            "Tipo Adquisición (norm)",
+        ]
+        mask = pd.Series(False, index=df_excluidas.index)
+        for col in cols:
+            if col in df_excluidas.columns:
+                mask |= df_excluidas[col].str.contains(pattern, regex=True, na=False, case=False)
+
+        df_bypass = df_excluidas[mask]
         self.logger.info(f"🔄 Bypass: {len(df_bypass):,}")
         return df_bypass
     

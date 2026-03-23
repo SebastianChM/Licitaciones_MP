@@ -1,15 +1,21 @@
 """
 Pipeline Licitaciones MP
-Orquestador que ejecuta las 4 etapas del procesamiento de licitaciones.
+Orquestador que ejecuta las etapas del procesamiento de licitaciones.
 
-Version: 3.0.0
+Version: 5.0.0
 Autor: Sebastian Chirino
-Fecha: Octubre 2025
 """
 
-__version__ = "3.0.0"
+__version__ = "5.0.0"
 
+import sys
 from pathlib import Path
+
+# Asegurar que src/ está en el path al ejecutar desde la raíz del proyecto
+_SRC = Path(__file__).parent / "src"
+if str(_SRC) not in sys.path:
+    sys.path.insert(0, str(_SRC))
+
 from datetime import datetime
 from typing import Dict, Any, Optional
 
@@ -17,6 +23,8 @@ from core.context import PipelineContext
 from core.contracts import StageResult
 
 from utils import Config, ProjectLogger
+from utils.alerts import AlertManager, ConsoleAlertSink, FileAlertSink
+from utils.observability import ObservabilityRules, RunSummaryReporter
 from etapas.etapa0 import Etapa0Descarga
 from etapas.etapa1 import AuditorTaxonomia
 from etapas.etapa2 import FiltradorLicitaciones
@@ -47,7 +55,13 @@ class PipelineLicitaciones:
         self.config = config or Config()
         self.context = PipelineContext(config=self.config)
         self.logger = ProjectLogger('pipeline_completo', self.config.LOG_DIR)
-        
+
+        # Sistema de alertas: console + archivo JSONL en LOG_DIR
+        self.alerts = AlertManager()
+        self.alerts.add_sink(ConsoleAlertSink())
+        alerts_file = self.config.LOG_DIR / f"alerts_{self.context.run_id}.jsonl"
+        self.alerts.add_sink(FileAlertSink(alerts_file))
+
         # Diccionario transitorio para backward compatibility hasta refactor Fase 2B
         self.resultados = {
             'etapa0': None,
@@ -59,25 +73,7 @@ class PipelineLicitaciones:
             'tiempo_total': None,
             'exito': False
         }
-        
-        self.tiempo_inicio = datetime.now()
 
-    def _ejecutar_legacy(self, nombre: str, instancia: Any, *args, **kwargs) -> StageResult:
-        """Adapter temporal para envolver etapas legacy en el nuevo sistema de StageResult"""
-        try:
-            res_dict = instancia.ejecutar(*args, **kwargs)
-            exito = res_dict.get('exito', False) if isinstance(res_dict, dict) else True
-            
-            result = StageResult(
-                success=exito,
-                stage_name=nombre,
-                custom_data=res_dict if isinstance(res_dict, dict) else {}
-            )
-            self.context.stage_results[nombre] = result
-            return result
-        except Exception as e:
-            return StageResult(success=False, stage_name=nombre, error_message=str(e))
-    
     def ejecutar(
         self,
         etapas=None,
@@ -106,6 +102,8 @@ class PipelineLicitaciones:
         self.logger.info("")
         
         try:
+            tiempo_inicio = datetime.now()
+
             # ETAPA 0: Descarga automática (opcional)
             if descargar_archivo:
                 self.logger.section("=" * 80, 80)
@@ -125,6 +123,12 @@ class PipelineLicitaciones:
                     if stats0:
                         self.logger.info(f"   * Archivo descargado: {stats0.get('archivo', 'N/A')}")
                         self.logger.info(f"   * Tamaño: {stats0.get('tamano_mb', 0):.2f} MB")
+                self.logger.info("")
+            else:
+                # Sin descarga: registrar el archivo de entrada para las etapas siguientes
+                _archivo_input = archivo_entrada or self.config.LICITACIONES_MP
+                self.context.add_artifact('etapa0_output', _archivo_input)
+                self.logger.info(f"Etapa 0 omitida — usando: {_archivo_input.name}")
                 self.logger.info("")
             
             # ETAPA 1: Auditoria de Taxonomia
@@ -225,42 +229,34 @@ class PipelineLicitaciones:
                 self.logger.section("=" * 80, 80)
                 self.logger.info("EJECUTANDO ETAPA 5 - ANÁLISIS INCREMENTAL")
                 self.logger.section("=" * 80, 80)
-                
-                generador_incremental = GeneradorReporteIncremental(self.config)
-                
-                # Usar el archivo generado en etapa 4
-                archivo_etapa4 = None
-                if self.resultados['etapa4']:
-                    archivo_etapa4 = self.resultados['etapa4'].get('archivo_reporte')
-                
-                if not archivo_etapa4:
-                    # Buscar el archivo más reciente si no está en resultados
-                    dir_presentacion = self.config.OUTPUT_DIR / "5. PRESENTACION"
-                    archivos = list(dir_presentacion.glob("Reporte_Licitaciones_*.xlsx"))
-                    if archivos:
-                        archivo_etapa4 = max(archivos, key=lambda x: x.stat().st_mtime)
-                
-                if archivo_etapa4:
-                    stage_res = self._ejecutar_legacy('etapa5', generador_incremental, archivo_etapa4)
-                    self.resultados['etapa5'] = stage_res.custom_data
-                    
-                    if not stage_res.success:
-                        self.logger.warning(f"Etapa 5 tuvo problemas: {stage_res.error_message}. Continuando...")
-                    
-                    self.logger.info("\nETAPA 5 COMPLETADA")
-                    stats5 = self.resultados['etapa5']
-                    self.logger.info(f"   * Nuevas agregadas: {stats5.get('licitaciones_nuevas', 0)}")
-                    self.logger.info(f"   * Existentes actualizadas: {stats5.get('licitaciones_existentes', 0)}")
-                    self.logger.info(f"   * Vencidas movidas: {stats5.get('licitaciones_vencidas', 0)}")
-                    self.logger.info(f"   * Tipo reporte: {stats5.get('tipo', 'N/A')}")
-                    self.logger.info("")
-                else:
-                    self.logger.warning("No se encontró archivo de Etapa 4 para procesar en Etapa 5")
+
+                generador_incremental = GeneradorReporteIncremental()
+                stage_res = generador_incremental.run(self.context)
+                self.context.stage_results['etapa5'] = stage_res
+                self.resultados['etapa5'] = stage_res.custom_data
+
+                if not stage_res.success:
+                    self.logger.warning(f"Etapa 5 tuvo problemas: {stage_res.error_message}. Continuando...")
+
+                self.logger.info("\nETAPA 5 COMPLETADA")
+                stats5 = self.resultados['etapa5'] or {}
+                self.logger.info(f"   * Nuevas agregadas: {stats5.get('licitaciones_nuevas', 0)}")
+                self.logger.info(f"   * Existentes actualizadas: {stats5.get('licitaciones_existentes', 0)}")
+                self.logger.info(f"   * Vencidas movidas: {stats5.get('licitaciones_vencidas', 0)}")
+                self.logger.info(f"   * Tipo reporte: {stats5.get('tipo', 'N/A')}")
+                self.logger.info("")
             
             # Calculo de tiempos
-            self.resultados['tiempo_total'] = datetime.now() - self.tiempo_inicio
+            self.resultados['tiempo_total'] = datetime.now() - tiempo_inicio
             self.resultados['exito'] = True
-            
+
+            # Observabilidad: evaluar reglas de negocio y generar JSON de resumen del run
+            obs = ObservabilityRules(self.context, self.alerts)
+            obs.evaluate_all()
+            reporter = RunSummaryReporter(self.context, self.alerts)
+            summary_path = reporter.generate_and_save()
+            self.logger.info(f"📋 Run summary: {summary_path.name}")
+
             # Resumen final
             self._imprimir_resumen_final()
             

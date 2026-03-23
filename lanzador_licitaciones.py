@@ -9,30 +9,41 @@ from tkinter import ttk, messagebox
 import subprocess
 import sys
 import threading
+import os
 from pathlib import Path
 import time
+
+# Hacer disponibles los módulos de src/ sin necesidad de instalar el paquete
+_SRC = Path(__file__).parent / "src"
+if str(_SRC) not in sys.path:
+    sys.path.insert(0, str(_SRC))
+
+from utils.verificador_entorno import VerificadorEntorno  # noqa: E402
 
 class LanzadorLicitaciones:
     def __init__(self):
         self.root = tk.Tk()
         self.root.title("🏛️ MP - Licitaciones Mercado Público")
-        self.root.geometry("600x450")
+        self.root.geometry("600x540")
         self.root.resizable(False, False)
-        
+
         # Centrar ventana
         self.root.update_idletasks()
         x = (self.root.winfo_screenwidth() // 2) - (600 // 2)
-        y = (self.root.winfo_screenheight() // 2) - (450 // 2)
-        self.root.geometry(f"600x450+{x}+{y}")
-        
-        # Configurar colores MP
+        y = (self.root.winfo_screenheight() // 2) - (540 // 2)
+        self.root.geometry(f"600x540+{x}+{y}")
+
+        # Colores corporativos MP
         self.color_azul_mp = "#0066CC"
         self.color_gris = "#F5F5F5"
-        
         self.root.configure(bg=self.color_gris)
-        
+
+        self._verificador = VerificadorEntorno(Path(__file__).parent)
+        self._frame_checks: tk.LabelFrame | None = None
+
         self.proceso_activo = False
         self.setup_ui()
+        self._actualizar_checks()
     
     def setup_ui(self):
         """Configurar interfaz de usuario"""
@@ -53,8 +64,18 @@ class LanzadorLicitaciones:
                             font=("Arial", 12),
                             fg="gray",
                             bg=self.color_gris)
-        subtitulo.pack(pady=(0, 30))
-        
+        subtitulo.pack(pady=(0, 8))
+
+        # --- Panel de estado del entorno ---
+        self._frame_checks = tk.LabelFrame(
+            main_frame,
+            text=" Estado del entorno ",
+            font=("Arial", 9, "bold"),
+            bg=self.color_gris,
+            pady=4,
+        )
+        self._frame_checks.pack(fill=tk.X, pady=(0, 10))
+
         # Botones principales
         self.btn_completo = tk.Button(main_frame,
                                      text="🚀 EJECUTAR PIPELINE COMPLETO",
@@ -77,7 +98,17 @@ class LanzadorLicitaciones:
                                         command=self.ejecutar_solo_incremental,
                                         cursor="hand2")
         self.btn_incremental.pack(pady=10)
-        
+
+        self.btn_resultados = tk.Button(main_frame,
+                                        text="📂 Abrir carpeta de resultados",
+                                        font=("Arial", 10),
+                                        bg="#555555",
+                                        fg="white",
+                                        width=40,
+                                        command=self.abrir_carpeta_resultados,
+                                        cursor="hand2")
+        self.btn_resultados.pack(pady=(0, 10))
+
         # Separador
         separator = ttk.Separator(main_frame, orient='horizontal')
         separator.pack(fill=tk.X, pady=20)
@@ -136,6 +167,58 @@ class LanzadorLicitaciones:
         # Log inicial
         self.agregar_log("🎯 Sistema de licitaciones MP iniciado")
         self.agregar_log("💡 Selecciona una opción para comenzar")
+
+    def _actualizar_checks(self) -> None:
+        """Ejecuta las verificaciones de entorno y actualiza el panel de estado."""
+        if self._frame_checks is None:
+            return
+
+        # Limpiar contenido anterior del panel
+        for widget in self._frame_checks.winfo_children():
+            widget.destroy()
+
+        resultados = self._verificador.verificar_todo()
+
+        for r in resultados:
+            if r.ok:
+                icono, color = "✅", "#1a7a1a"
+            elif r.critico:
+                icono, color = "❌", "#cc0000"
+            else:
+                icono, color = "⚠️ ", "#cc8800"
+
+            tk.Label(
+                self._frame_checks,
+                text=f"{icono}  {r.nombre}: {r.mensaje}",
+                font=("Arial", 8),
+                fg=color,
+                bg=self.color_gris,
+                anchor=tk.W,
+            ).pack(fill=tk.X, padx=10, pady=1)
+
+        # Botón de re-verificación en la última fila
+        btn_frame = tk.Frame(self._frame_checks, bg=self.color_gris)
+        btn_frame.pack(fill=tk.X, padx=10, pady=(2, 4))
+        tk.Button(
+            btn_frame,
+            text="🔄 Re-verificar",
+            font=("Arial", 8),
+            bg="#e0e0e0",
+            relief=tk.FLAT,
+            cursor="hand2",
+            command=self._actualizar_checks,
+        ).pack(anchor=tk.E)
+
+        # Bloquear botones principales si hay errores críticos
+        hay_error = self._verificador.hay_errores_criticos(resultados)
+        estado_btn = tk.DISABLED if hay_error else tk.NORMAL
+        self.btn_completo.config(state=estado_btn)
+        self.btn_incremental.config(state=estado_btn)
+
+        if hay_error:
+            self.actualizar_estado("⚠️ Configuración incompleta — revisa el panel superior", "red")
+        else:
+            self.actualizar_estado("✅ Sistema listo para ejecutar", "green")
     
     def agregar_log(self, mensaje):
         """Agregar mensaje al área de log"""
@@ -277,6 +360,12 @@ class LanzadorLicitaciones:
         thread = threading.Thread(target=ejecutar, daemon=True)
         thread.start()
     
+    def abrir_carpeta_resultados(self):
+        """Abre la carpeta de resultados en el Explorador de Windows."""
+        carpeta = Path(__file__).parent / "data" / "2. OUTPUT" / "5. PRESENTACION"
+        carpeta.mkdir(parents=True, exist_ok=True)
+        os.startfile(str(carpeta))
+
     def salir(self):
         """Salir de la aplicación"""
         if self.proceso_activo:

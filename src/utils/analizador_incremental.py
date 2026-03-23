@@ -2,6 +2,7 @@
 # Preserva trabajo manual de usuarios y solo actualiza lo necesario
 
 import pandas as pd
+import openpyxl
 from pathlib import Path
 from typing import Dict, List, Set, Optional
 from datetime import datetime
@@ -113,33 +114,63 @@ class AnalizadorIncremental:
         return reporte
     
     def _cargar_taxonomia_pivot(self) -> Dict[str, Set]:
-        """Carga taxonomía actual del PIVOT_MAESTRO"""
-        
+        """Carga taxonomía actual del PIVOT_MAESTRO desde hoja 04-BASE (fuente canónica)."""
+        taxonomia = {'nivel1': set(), 'nivel2': set(), 'nivel3': set(), 'generico': set()}
+
         try:
-            # Cargar datos de taxonomía desde diferentes hojas del PIVOT
-            taxonomia = {
-                'nivel1': set(),
-                'nivel2': set(),
-                'nivel3': set(),
-                'generico': set()
-            }
-            
-            # Hoja de auditoría (si existe)
-            try:
-                df_audit = pd.read_excel(self.config.PIVOT_MAESTRO, sheet_name='01-AUDITORIA')
-                for col_name, tax_key in [('Nivel 1', 'nivel1'), ('Nivel 2', 'nivel2'), 
-                                         ('Nivel 3', 'nivel3'), ('Genérico', 'generico')]:
-                    if col_name in df_audit.columns:
-                        valores = df_audit[col_name].dropna().astype(str)
-                        taxonomia[tax_key].update(normalizar_texto(v) for v in valores if v not in ['nan', 'None'])
-            except Exception:
-                pass
-            
-            return taxonomia
-            
+            wb = openpyxl.load_workbook(self.config.PIVOT_MAESTRO, data_only=True)
+
+            # Determinar hoja a usar: 04-BASE es la fuente canónica; fallback a 01-AUDITORIA
+            sheet_name = '04-BASE' if '04-BASE' in wb.sheetnames else '01-AUDITORIA'
+            if sheet_name not in wb.sheetnames:
+                self.logger.warning("⚠️ No se encontró hoja de taxonomía en PIVOT_MAESTRO (04-BASE / 01-AUDITORIA)")
+                return taxonomia
+
+            ws = wb[sheet_name]
+            campo_idx = {}
+
+            # Detectar fila de encabezado (máx 30 filas)
+            for row in ws.iter_rows(max_row=30):
+                vals = [normalizar_texto(str(c.value)) if c.value else '' for c in row[:10]]
+                if any('NIVEL' in v and '1' in v for v in vals):
+                    for j, cell in enumerate(row[:10]):
+                        if not cell.value:
+                            continue
+                        norm = normalizar_texto(str(cell.value))
+                        if 'NIVEL' in norm and '1' in norm:
+                            campo_idx['nivel1'] = j
+                        elif 'NIVEL' in norm and '2' in norm:
+                            campo_idx['nivel2'] = j
+                        elif 'NIVEL' in norm and '3' in norm:
+                            campo_idx['nivel3'] = j
+                        elif 'GENERICO' in norm:
+                            campo_idx['generico'] = j
+                    break
+
+            if not campo_idx:
+                self.logger.warning(f"⚠️ No se detectó encabezado de taxonomía en hoja {sheet_name}")
+                return taxonomia
+
+            header_row = next(
+                (r for r in ws.iter_rows(max_row=30)
+                 if any(normalizar_texto(str(c.value or '')) for c in r[:10])), None
+            )
+            start_row = (header_row[0].row + 1) if header_row else 2
+
+            for row in ws.iter_rows(min_row=start_row):
+                for campo, idx in campo_idx.items():
+                    val = row[idx].value
+                    if val and str(val).strip() not in ('', 'nan', 'None'):
+                        taxonomia[campo].add(normalizar_texto(str(val)))
+
+            wb.close()
+            total = sum(len(v) for v in taxonomia.values())
+            self.logger.info(f"[OK] Taxonomía cargada desde {sheet_name}: {total} valores")
+
         except Exception as e:
             self.logger.warning(f"⚠️ Error cargando taxonomía del PIVOT: {e}")
-            return {'nivel1': set(), 'nivel2': set(), 'nivel3': set(), 'generico': set()}
+
+        return taxonomia
     
     def _extraer_taxonomia_datos(self, datos: pd.DataFrame) -> Dict[str, Set]:
         """Extrae taxonomía de datos nuevos"""
@@ -176,14 +207,14 @@ class AnalizadorIncremental:
         for categoria, valores in cambios.items():
             todos_nuevos.extend(valores)
         
-        # Palabras clave que sugieren inclusión (ingeniería/consultoría)
-        keywords_inclusion = ['consultor', 'ingenir', 'diseño', 'arquitectur', 'tecnic', 'proyecto', 'desarrollo']
-        
-        # Palabras clave que sugieren exclusión
-        keywords_exclusion = ['suministro', 'arriendo', 'mantenci', 'limpieza', 'vigilanc', 'alimenta', 'transport']
-        
+        # Palabras clave que sugieren inclusión (ingeniería/consultoría) — normalizadas sin tilde
+        keywords_inclusion = ['CONSULTOR', 'INGENIR', 'DISENO', 'ARQUITECTUR', 'TECNIC', 'PROYECTO', 'DESARROLLO']
+
+        # Palabras clave que sugieren exclusión — normalizadas sin tilde
+        keywords_exclusion = ['SUMINISTRO', 'ARRIENDO', 'MANTENCI', 'LIMPIEZA', 'VIGILANC', 'ALIMENTA', 'TRANSPORT']
+
         for valor in todos_nuevos:
-            valor_norm = normalizar_texto(valor)
+            valor_norm = normalizar_texto(valor)  # uppercase + sin tildes
             
             # Sugerir inclusión
             if any(kw in valor_norm for kw in keywords_inclusion):

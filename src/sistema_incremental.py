@@ -1,24 +1,43 @@
 # Sistema de Análisis Incremental y Sugerencias de Filtros
 # Ejecuta análisis completo de cambios y genera recomendaciones
 
+import sys
+from pathlib import Path
+
+# Ajustar sys.path para ejecución standalone desde raíz o desde src/
+_SRC = Path(__file__).parent
+if str(_SRC) not in sys.path:
+    sys.path.insert(0, str(_SRC))
+
 from utils import Config, AnalizadorIncremental, ProjectLogger
+from core.context import PipelineContext
 import pandas as pd
 import json
 from datetime import datetime
 
 
 class SistemaAnalisisIncremental:
-    """Sistema completo de análisis incremental y sugerencias"""
-    
-    def __init__(self):
-        self.config = Config()
+    """Sistema completo de análisis incremental y sugerencias.
+
+    Usa PipelineContext para compartir configuración y run_id con el resto
+    del pipeline, aunque opera en modo standalone (no requiere etapas previas).
+    """
+
+    def __init__(self, context: PipelineContext = None):
+        if context is None:
+            config = Config()
+            context = PipelineContext(config=config)
+            context.flags['allow_fallback'] = True
+        self.context = context
+        self.config = context.config
         self.logger = ProjectLogger('sistema_incremental', self.config.LOG_DIR)
         self.analizador = AnalizadorIncremental(self.config)
-        
+
     def ejecutar_analisis_completo(self):
         """Ejecuta análisis completo del sistema"""
-        
+
         self.logger.section("SISTEMA DE ANÁLISIS INCREMENTAL", 80)
+        self.logger.info(f"RunID: {self.context.run_id}")
         self.logger.info("🔍 Iniciando análisis completo...")
         
         try:
