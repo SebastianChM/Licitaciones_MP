@@ -56,6 +56,7 @@ def test_etapa3_flujo_exitoso_y_errores_por_registro():
     with patch('pathlib.Path.exists', return_value=True), \
          patch.object(EnriquecedorAPI, '_cargar_licitaciones', return_value=df_test), \
          patch.object(EnriquecedorAPI, '_cargar_api_key', return_value="FAKE_KEY"), \
+         patch.object(EnriquecedorAPI, '_health_check_api', return_value=True), \
          patch.object(EnriquecedorAPI, '_consultar_api', side_effect=_mock_consultar_api), \
          patch.object(EnriquecedorAPI, '_generar_outputs', return_value=[Path('/tmp/enriquecida.xlsx')]):
          

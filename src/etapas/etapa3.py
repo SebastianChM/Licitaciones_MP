@@ -70,7 +70,6 @@ class EnriquecedorAPI(BaseStage):
     
     def run(self, context: PipelineContext) -> StageResult:
         self.bind(context)
-        self.http = HTTPClient(self.logger, max_retries=3, timeout=15, backoff_factor=1.5)
         self.logger.section("ETAPA 3 - ENRIQUECIMIENTO VÍA API", 80)
         self.logger.info(f"🚀 Iniciando enriquecimiento - Versión {__version__} | RunID: {context.run_id}")
         self.logger.info(f"📅 Fecha: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
@@ -80,15 +79,29 @@ class EnriquecedorAPI(BaseStage):
             self.delay_segundos = self.config.ETAPA3_DELAY_SEGUNDOS
             self.max_reintentos = self.config.ETAPA3_MAX_REINTENTOS
             self.timeout = self.config.ETAPA3_TIMEOUT
+            # HTTPClient se inicializa DESPUÉS de leer el config para usar ETAPA3_TIMEOUT (40s) y ETAPA3_MAX_REINTENTOS
+            self.http = HTTPClient(self.logger,
+                                   max_retries=self.max_reintentos,
+                                   timeout=self.timeout,
+                                   backoff_factor=1.5)
             self.api_key = self._cargar_api_key()
             
             self.validate_inputs(context)
             archivo_entrada = context.get_artifact('etapa2_output') or self._obtener_archivo_fallback(context)
-            
+
+            # ── Health check: verificar que la API responde ANTES de procesar N registros ──
+            api_disponible = self._health_check_api()
+            if not api_disponible:
+                self.logger.warning(
+                    "⚠️ La API de Mercado Público no está respondiendo ahora mismo.\n"
+                    "   El pipeline continuará SIN datos adicionales de la API.\n"
+                    "   Puedes volver a ejecutar solo la Etapa 3 cuando la API esté disponible."
+                )
+
             df_filtradas = self._cargar_licitaciones(archivo_entrada)
             self.estadisticas['total_registros'] = len(df_filtradas)
-            
-            df_enriquecidas = self._enriquecer_licitaciones(df_filtradas)
+
+            df_enriquecidas = self._enriquecer_licitaciones(df_filtradas, api_disponible=api_disponible)
             rutas_generadas = self._generar_outputs(df_enriquecidas)
             
             if not rutas_generadas:
@@ -160,7 +173,23 @@ class EnriquecedorAPI(BaseStage):
         if eliminados:
             self.logger.info(f"[♻️] {eliminados} checkpoint(s) antiguo(s) eliminado(s) (>{retention}d)")
 
-    def _enriquecer_licitaciones(self, df: pd.DataFrame) -> pd.DataFrame:
+    def _health_check_api(self) -> bool:
+        """Hace UNA llamada rápida para saber si la API está respondiendo."""
+        url = f"{self.api_base_url}/licitaciones.json"
+        params = {"ticket": self.api_key, "estado": "publicada"}
+        self.logger.info("[>>] Verificando disponibilidad de la API de Mercado Público...")
+        try:
+            resp = self.http.session.get(url, params=params, timeout=15)
+            if resp.status_code == 200:
+                self.logger.info("[OK] API de Mercado Público disponible.")
+                return True
+            self.logger.warning(f"⚠️ API respondió con HTTP {resp.status_code} — puede estar degradada.")
+            return resp.status_code < 500   # 2xx/3xx/4xx = está up; 5xx = servidor caído
+        except Exception:
+            self.logger.warning("⚠️ API de Mercado Público no respondió al health check (timeout o sin conexión).")
+            return False
+
+    def _enriquecer_licitaciones(self, df: pd.DataFrame, api_disponible: bool = True) -> pd.DataFrame:
         self.logger.subsection("Enriqueciendo licitaciones vía API")
         
         col_codigo = next((c for c in ["Numero Adquisición", "Código", "Codigo", "CodigoExterno"] if c in df.columns), None)
@@ -182,7 +211,10 @@ class EnriquecedorAPI(BaseStage):
                             continue
                         try:
                             record = json.loads(line)
-                            if record.get('status') in ('success', 'api_disponible_false'):
+                            # Solo reutilizar registros exitosos del checkpoint.
+                            # Los 'api_disponible_false' pueden ser de cuando el ticket
+                            # estaba caducado o la API caída — se deben reintentar.
+                            if record.get('status') == 'success':
                                 resultados_cache[record['codigo']] = record['data']
                         except json.JSONDecodeError:
                             continue
@@ -191,12 +223,30 @@ class EnriquecedorAPI(BaseStage):
                 self.logger.warning(f"[!] Checkpoint corrupto o inaccesible, se ignorará: {e}")
                 resultados_cache = {}
                 
+        # Si la API está caída, marcar todo directamente sin llamadas HTTP
+        if not api_disponible:
+            self.logger.info("[>>] API no disponible — generando resultado sin datos adicionales para todas las licitaciones.")
+            resultados = [{**row.to_dict(), '_api_disponible': False, '_api_error': 'API no disponible al inicio del proceso'}
+                          for _, row in df.iterrows()]
+            self.estadisticas['errores_registro'] = len(resultados)
+            return pd.DataFrame(resultados)
+
         resultados = []
+        okcount = 0
+        failcount = 0
+        # Circuit breaker: si N fallos consecutivos, pausar para dejar recuperar la API
+        _CB_UMBRAL = 5       # fallos seguidos antes de activar
+        _CB_PAUSA  = 60      # segundos de espera cuando se activa
+        fallos_consecutivos = 0
 
         with open(checkpoint_file, 'a', encoding='utf-8') as cp_file:
             for idx, row in df.iterrows():
-                if (idx + 1) % 10 == 0 or idx == 0 or idx == total - 1:
-                    self.logger.progress(idx + 1, total, prefix="Enriqueciendo")
+                mostrar_progreso = (idx + 1) % 10 == 0 or idx == 0 or idx == total - 1
+                if mostrar_progreso:
+                    self.logger.progress(
+                        idx + 1, total,
+                        prefix=f"Enriqueciendo [✓ {okcount} datos | ⚠ {failcount} sin respuesta]"
+                    )
                 
                 codigo = str(row[col_codigo])
                 if codigo in resultados_cache:
@@ -220,8 +270,31 @@ class EnriquecedorAPI(BaseStage):
 
                 if datos_api.get('_api_disponible', True):
                     self.estadisticas['enriquecidos_ok'] += 1
+                    okcount += 1
+                    fallos_consecutivos = 0   # reset circuit breaker en éxito
                 else:
                     self.estadisticas['errores_registro'] += 1
+                    failcount += 1
+                    # Solo activar circuit breaker en fallos reales de red/servidor
+                    # "Listado vacío" (HTTP 200 sin datos) es normal y NO debe contar
+                    if datos_api.get('_fallo_red', False):
+                        fallos_consecutivos += 1
+                        self.logger.info(
+                            f"   ↪️ Licitación {codigo} incluida sin datos adicionales "
+                            f"(fallo de red, el proceso continúa)"
+                        )
+                        # Circuit breaker: N fallos de red seguidos → pausar
+                        if fallos_consecutivos >= _CB_UMBRAL:
+                            self.logger.warning(
+                                f"⏸ {fallos_consecutivos} fallos de red consecutivos. "
+                                f"Pausando {_CB_PAUSA}s para que el servidor se recupere..."
+                            )
+                            time.sleep(_CB_PAUSA)
+                            self.http._renovar_sesion()
+                            fallos_consecutivos = 0
+                    else:
+                        # Listado vacío: licitación no indexada en la API — es normal
+                        fallos_consecutivos = 0
 
         try:
             if checkpoint_file.exists():
@@ -249,21 +322,23 @@ class EnriquecedorAPI(BaseStage):
         try:
             self.estadisticas['llamadas_api'] += 1
             response = self.http.get(url, params=params)
-                
+
             data = response.json()
             if 'Listado' in data and data['Listado']:
                 datos_procesados = self._procesar_respuesta_api(data['Listado'][0])
                 self.cache[codigo] = datos_procesados
                 return datos_procesados
-            return {'_api_error': 'Listado vacío', '_api_disponible': False}
-                
+            # HTTP 200 pero sin datos — licitación no indexada en la API (normal, no es fallo de red)
+            return {'_api_error': 'Listado vacío', '_api_disponible': False, '_fallo_red': False}
+
         except Exception as e:
-            # Si el HTTPClient agota los reintentos
+            # Fallo real de red/servidor — éstos sí deben activar el circuit breaker
             if hasattr(e, 'response') and e.response is not None:
                 if e.response.status_code >= 500:
                     self.estadisticas['errores_http_500'] += 1
-                return {'_api_error': f'HTTP Error {e.response.status_code}', '_api_disponible': False}
-            return {'_api_error': str(e), '_api_disponible': False}
+                return {'_api_error': f'HTTP Error {e.response.status_code}',
+                        '_api_disponible': False, '_fallo_red': True}
+            return {'_api_error': str(e), '_api_disponible': False, '_fallo_red': True}
     
     def _procesar_respuesta_api(self, datos_raw: dict) -> dict:
         """Extrae y procesa datos de la respuesta de la API, incluyendo objetos anidados"""

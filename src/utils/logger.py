@@ -47,11 +47,9 @@ class ProjectLogger:
         file_handler.setFormatter(file_formatter)
         self.logger.addHandler(file_handler)
         
-        # Handler para consola — con errors='replace' para tolerancia en terminales Windows cp1252
-        console_stream = open(sys.stdout.fileno(), mode='w',
-                              encoding=sys.stdout.encoding or 'utf-8',
-                              errors='replace', closefd=False, buffering=1)
-        console_handler = logging.StreamHandler(console_stream)
+        # Handler para consola — UTF-8 forzado para evitar garbled chars en Windows
+        # Se usa sys.stdout directamente para evitar doble-buffer con el fileno
+        console_handler = logging.StreamHandler(sys.stdout)
         console_handler.setLevel(nivel)
         console_formatter = logging.Formatter(
             '%(asctime)s | %(levelname)-8s | %(message)s',
@@ -59,6 +57,9 @@ class ProjectLogger:
         )
         console_handler.setFormatter(console_formatter)
         self.logger.addHandler(console_handler)
+
+        # Evitar que el root logger duplique los mensajes (logging.propagate=True por defecto)
+        self.logger.propagate = False
         
         # Metricas
         self.metrics: dict[str, int] = defaultdict(int)

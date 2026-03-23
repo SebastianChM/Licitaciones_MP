@@ -33,6 +33,7 @@ def test_etapa3_crea_checkpoint_y_luego_lo_borra(clean_ctx):
         return {'_api_disponible': True, 'MontoEstimado': 100}
         
     with patch.object(EnriquecedorAPI, '_cargar_api_key', return_value="FAKE"), \
+         patch.object(etapa, '_health_check_api', return_value=True), \
          patch.object(EnriquecedorAPI, '_consultar_api', side_effect=mock_consultar):
          
          result = etapa.run(ctx)
@@ -65,6 +66,7 @@ def test_etapa3_reanuda_exito_sin_reprocesar(clean_ctx):
     mock_api_call = MagicMock(return_value={'_api_disponible': True, 'Monto': 30})
     
     with patch.object(EnriquecedorAPI, '_cargar_api_key', return_value="FAKE"), \
+         patch.object(etapa, '_health_check_api', return_value=True), \
          patch.object(EnriquecedorAPI, '_consultar_api', mock_api_call):
          
          result = etapa.run(ctx)
@@ -93,6 +95,7 @@ def test_etapa3_mismatch_input_hash_crea_diferente_checkpoint(clean_ctx):
         return {'_api_disponible': True}
         
     with patch.object(EnriquecedorAPI, '_cargar_api_key', return_value="FAKE"), \
+         patch.object(etapa, '_health_check_api', return_value=True), \
          patch.object(EnriquecedorAPI, '_consultar_api', side_effect=mock_consultar) as m_consultar:
          
          etapa.run(ctx)

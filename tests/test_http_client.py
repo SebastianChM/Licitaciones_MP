@@ -10,8 +10,12 @@ def http_client():
     return HTTPClient(logger=logger, max_retries=2, timeout=1, backoff_factor=0.1)
 
 def test_retry_ante_timeout_transitorio(http_client):
-    with patch.object(http_client.session, 'request') as mock_request:
-        # Fallo 2 veces por Timeout, luego éxito 200
+    # _renovar_sesion se mockea como no-op para que self.session no sea reemplazado
+    # (si no, el mock de session.request deja de aplicar tras la renovación de sesión)
+    with patch.object(http_client.session, 'request') as mock_request, \
+         patch.object(http_client, '_renovar_sesion'), \
+         patch('utils.http.time.sleep'):
+        # Fallo 2 veces por Timeout/ConnectionError, luego éxito 200
         mock_response = MagicMock()
         mock_response.status_code = 200
         mock_request.side_effect = [
@@ -42,7 +46,8 @@ def test_retry_ante_429(http_client):
         assert mock_request.call_count == 2
         
 def test_retry_ante_5xx(http_client):
-    with patch.object(http_client.session, 'request') as mock_request:
+    with patch.object(http_client.session, 'request') as mock_request, \
+         patch('utils.http.time.sleep'):
         resp_503 = MagicMock()
         resp_503.status_code = 503
         resp_503.reason = "Service Unavailable"
@@ -72,7 +77,8 @@ def test_no_retry_ante_403(http_client):
         assert mock_request.call_count == 1  # No reintentó
         
 def test_agotar_reintentos_lanza_excepcion(http_client):
-    with patch.object(http_client.session, 'request') as mock_request:
+    with patch.object(http_client.session, 'request') as mock_request, \
+         patch('utils.http.time.sleep'):
         resp_500 = MagicMock()
         resp_500.status_code = 500
         mock_request.return_value = resp_500
