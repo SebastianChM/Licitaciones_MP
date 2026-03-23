@@ -1,0 +1,9 @@
+F380PG3 – 2025-08-12 13:14:15.311519
+Traceback (most recent call last):
+  File "C:\Users\sebastian.chirino\OneDrive - Sebastian Chirino S.A.U\Archivos de Joseph Esteban León Ramírez - Licitaciones_MP\etapa4.py", line 377, in <module>
+    main()
+    ~~~~^^
+  File "C:\Users\sebastian.chirino\OneDrive - Sebastian Chirino S.A.U\Archivos de Joseph Esteban León Ramírez - Licitaciones_MP\etapa4.py", line 370, in main
+    dv.ranges.append(f"Z5:Z{ws.max_row}")
+    ^^^^^^^^^^^^^^^^
+AttributeError: 'MultiCellRange' object has no attribute 'append'

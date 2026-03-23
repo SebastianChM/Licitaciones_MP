@@ -1,0 +1,2 @@
+2025-08-19 10:14:25 | INFO    | === Etapa 4 (fusionada) — inicio ===
+2025-08-19 10:14:26 | WARNING | No hay columna 'Fecha Cierre Licitación' → se omite histórico

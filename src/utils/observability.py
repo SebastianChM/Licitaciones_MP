@@ -1,0 +1,178 @@
+from core.context import PipelineContext
+from utils.alerts import AlertManager, AlertSeverity
+import json
+from pathlib import Path
+from datetime import datetime
+
+class ObservabilityRules:
+    def __init__(self, ctx: PipelineContext, alerts: AlertManager):
+        self.ctx = ctx
+        self.alerts = alerts
+    
+    def evaluate_all(self):
+        """Dispara todas las reglas de negocio sobre los StageResult"""
+        self._check_etapa0()
+        self._check_etapa2()
+        self._check_etapa3()
+        self._check_etapa4()
+        self._check_fallback_modes()
+
+    def _check_etapa0(self):
+        result = self.ctx.stage_results.get('etapa0')
+        if not result or not result.success:
+            return
+        
+        # Etapa 0 métricas: 'tamano_mb'
+        metrics = result.metrics_produced
+        if metrics.get('tamano_mb', 0) == 0:
+            self.alerts.trigger(
+                rule_id="E0_DESC_VACIA",
+                message="El archivo de licitaciones de MP descargado pesa 0 MB.",
+                severity=AlertSeverity.CRITICAL,
+                stage="etapa0",
+                recommendation="Revisar acceso a la URL de Mercado Público o si hubo corte en la red."
+            )
+            
+    def _check_etapa2(self):
+        result = self.ctx.stage_results.get('etapa2')
+        if not result or not result.success:
+            return
+        
+        metrics = result.metrics_produced
+        total = metrics.get('total_analizadas', 0)
+        filtradas = metrics.get('total_filtradas', 0)
+        
+        if filtradas == 0:
+            self.alerts.trigger(
+                rule_id="E2_FILTRO_VACIO",
+                message="Ninguna licitación superó los filtros de Keywords y ONUs.",
+                severity=AlertSeverity.WARNING,
+                stage="etapa2",
+                recommendation="Verificar si los diccionarios de PIVOT_MAESTRO son demasiado restrictivos."
+            )
+        elif total > 0:
+            tasa = filtradas / total
+            if tasa > 0.05: # más de 5% de Licitaciones Globales filtradas es absurdo para un estudio (generalmente ~0.1%)
+                self.alerts.trigger(
+                    rule_id="E2_TASA_FILTRADO_ALTA",
+                    message=f"La tasa de retención es inusualmente alta: {tasa*100:.2f}% de la base nacional.",
+                    severity=AlertSeverity.WARNING,
+                    stage="etapa2",
+                    recommendation="Revisar si un término general como 'Servicios' se coló en palabras clave."
+                )
+
+    def _check_etapa3(self):
+        result = self.ctx.stage_results.get('etapa3')
+        if not result or not result.success:
+            return
+        
+        metrics = result.metrics_produced
+        total = metrics.get('total_registros', 0)
+        errores = metrics.get('errores_registro', 0)
+        
+        if total == 0:
+            return
+            
+        tasa_error = errores / total
+        if tasa_error > 0.2:
+            self.alerts.trigger(
+                rule_id="E3_TASA_ERROR_ALTA",
+                message=f"El {tasa_error*100:.1f}% de las comprobaciones HTTP a MP fallaron por timeout o no resuelta.",
+                severity=AlertSeverity.CRITICAL,
+                stage="etapa3",
+                recommendation="Servidor de Mercado Público inestable o caído parcialmente."
+            )
+
+    def _check_etapa4(self):
+        result = self.ctx.stage_results.get('etapa4')
+        if not result:
+            return
+        
+        if result.success and len(result.files_produced) == 0:
+             self.alerts.trigger(
+                rule_id="E4_SIN_OUTPUT",
+                message="Etapa 4 retornó success pero no reportó archivos producidos.",
+                severity=AlertSeverity.ERROR,
+                stage="etapa4",
+                recommendation="Corrupción en la generación nativa de openpyxl."
+             )
+
+    def _check_fallback_modes(self):
+        if self.ctx.flags.get('allow_fallback'):
+            self.alerts.trigger(
+                rule_id="MODO_STANDALONE",
+                message="El pipeline corrió en modo standalone / fallback.",
+                severity=AlertSeverity.INFO,
+                stage="GLOBAL",
+                recommendation="El pipeline asume desvinculación estricta de etapas previas."
+            )
+
+class RunSummaryReporter:
+    def __init__(self, ctx: PipelineContext, alerts: AlertManager):
+        self.ctx = ctx
+        self.alerts = alerts
+        self.run_id = self.ctx.run_id
+    
+    def generate_and_save(self) -> Path:
+        """Extrae metadata, métricas puras y reporta un JSON unificado del Run"""
+        
+        start_time = self.ctx.start_time
+        end_time = datetime.now()
+        duration = end_time - start_time
+        
+        etapas_exitosas = sum(1 for _, res in self.ctx.stage_results.items() if res.success)
+        etapas_fallidas = sum(1 for _, res in self.ctx.stage_results.items() if not res.success)
+        etapas_ejecutadas = len(self.ctx.stage_results)
+        etapas_con_warning = sum(1 for _, res in self.ctx.stage_results.items() if res.warnings)
+        
+        estado_general = "SUCCESS"
+        if etapas_fallidas > 0:
+            estado_general = "ERROR"
+        elif etapas_con_warning > 0 or any(a.severity in (AlertSeverity.WARNING, AlertSeverity.CRITICAL) for a in self.alerts.get_history()):
+            estado_general = "WARNING_OR_DEGRADED"
+        
+        resumen = {
+            "metadata": {
+                "run_id": self.run_id,
+                "timestamp_inicio": start_time.isoformat(),
+                "timestamp_fin": end_time.isoformat(),
+                "duracion_total": str(duration),
+                "estado_general": estado_general
+            },
+            "metricas": {
+                "etapas_ejecutadas": etapas_ejecutadas,
+                "etapas_exitosas": etapas_exitosas,
+                "etapas_con_warning": etapas_con_warning,
+                "etapas_fallidas": etapas_fallidas
+            },
+            "alerts_disparadas": [
+                {
+                    "rule_id": a.rule_id,
+                    "message": a.message,
+                    "severity": a.severity.value,
+                    "stage": a.stage
+                } for a in self.alerts.get_history()
+            ],
+            "etapas_detalle": []
+        }
+        
+        for stage_name, result in self.ctx.stage_results.items():
+            resumen["etapas_detalle"].append({
+                "nombre_etapa": stage_name,
+                "success": result.success,
+                "error_message": result.error_message,
+                "warnings": result.warnings,
+                "metrics_produced": result.metrics_produced,
+                "files_produced": [str(f) for f in result.files_produced]
+            })
+            
+        # Archivo final
+        log_dir = self.ctx.config.BASE_DIR / 'logs' / 'runs'
+        log_dir.mkdir(parents=True, exist_ok=True)
+        summary_path = log_dir / f"run_{self.run_id}.json"
+        
+        with open(summary_path, "w", encoding="utf-8") as f:
+            f.write(json.dumps(resumen, indent=4, ensure_ascii=False,
+                               default=lambda o: o.isoformat() if hasattr(o, 'isoformat') else str(o)))
+            
+        return summary_path

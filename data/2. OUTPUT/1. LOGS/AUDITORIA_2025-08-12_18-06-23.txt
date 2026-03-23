@@ -1,0 +1,14 @@
+AUDITORÍA DE TAXONOMÍA - 2025-08-12_18-06-23
+==================================================
+
+ESTADÍSTICAS:
+- Campos procesados: 4
+- Valores nuevos total: 0
+- Similares detectados: 0
+- Errores: 0
+
+DETALLES:
+Nivel 1: Sin nuevos valores
+Nivel 2: Sin nuevos valores
+Nivel 3: Sin nuevos valores
+Genérico: Sin nuevos valores
