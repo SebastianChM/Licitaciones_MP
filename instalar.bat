@@ -68,7 +68,7 @@ if exist ".env" (
 
 REM --- 5. Crear acceso directo en el escritorio --------------------
 echo Creando acceso directo en el escritorio...
-powershell -ExecutionPolicy Bypass -File "%~dp0crear_acceso_directo.ps1" -Titulo "MP Licitaciones" >nul 2>&1
+powershell -ExecutionPolicy Bypass -NonInteractive -WindowStyle Hidden -File "%~dp0crear_acceso_directo.ps1" -Titulo "MP Licitaciones" >nul 2>&1
 if errorlevel 1 (
     echo [AVISO] No se pudo crear el acceso directo automaticamente.
     echo         Puedes ejecutar el sistema con: Lanzador_MP.bat
