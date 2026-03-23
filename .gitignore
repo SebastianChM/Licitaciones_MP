@@ -79,6 +79,12 @@ repomix-output.xml
 coverage.xml
 logs/
 
+# Checkpoints temporales de pipeline
+temp/
+
+# Scripts de prueba ad-hoc (no son parte del proyecto)
+_test_*.py
+
 # Sistema operativo
 Thumbs.db
 desktop.ini
