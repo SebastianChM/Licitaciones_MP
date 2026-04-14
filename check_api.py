@@ -20,7 +20,7 @@ import os
 load_dotenv()
 TICKET = os.getenv("LICIT_MERCADO_PUBLICO_TICKET", "")
 BASE   = "https://api.mercadopublico.cl/servicios/v1/publico"
-TIMEOUT = 15
+TIMEOUT = 25
 # ---------------------------------------------------------------------------
 
 def check(url, params, etiqueta):
