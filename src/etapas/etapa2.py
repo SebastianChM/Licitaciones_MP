@@ -208,6 +208,10 @@ class FiltradorLicitaciones(BaseStage):
         # una palabra de servicio profesional (ingeniería, consultoría, diseño...).
         df_filtradas = self._aplicar_intencion(df_filtradas)
 
+        # Scoring: contar cuántas keywords de exclusión matchean en cada fila
+        # que PASÓ el filtro. Más matches → menos "limpia" la licitación.
+        df_filtradas = self._contar_exclusiones_cercanas(df_filtradas)
+
         # Eliminar duplicados por código de adquisición
         col_codigo = encontrar_columna(df_filtradas, "Numero Adquisición")
         if col_codigo:
@@ -259,6 +263,17 @@ class FiltradorLicitaciones(BaseStage):
         df_incluidas['Trazabilidad Filtro'] = df_incluidas.apply(
             lambda row: self._calcular_trazabilidad(row, campos_map), axis=1
         )
+        # Conteo de matches para scoring: contar separadores '|' + 1
+        if len(df_incluidas) > 0:
+            traza = df_incluidas['Trazabilidad Filtro'].fillna('').astype(str)
+            df_incluidas['_n_matches_inclusion'] = (
+                traza.str.count(r'\|')
+                .add(1)
+                .where(traza != '', 0)
+                .astype(int)
+            )
+        else:
+            df_incluidas['_n_matches_inclusion'] = pd.Series(dtype=int)
         self.logger.info(f"🔍 Inclusión: {len(df_incluidas):,}/{len(df):,}")
         return df_incluidas
 
@@ -290,6 +305,41 @@ class FiltradorLicitaciones(BaseStage):
                     if entrada not in encontradas:
                         encontradas.append(entrada)
         return ' | '.join(encontradas) if encontradas else ''
+
+    def _contar_exclusiones_cercanas(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Cuenta cuántas keywords de exclusión matchean en cada fila que PASÓ el filtro.
+
+        El resultado se guarda en la columna auxiliar ``_n_exclusiones_cercanas``.
+        Un valor alto indica que la licitación es "riesgosa" — pasó por
+        bypass o por margen estrecho.
+        """
+        if len(df) == 0 or not self.profile:
+            df['_n_exclusiones_cercanas'] = 0
+            return df
+        campos_map = [
+            ("Nombre Adquisición (norm)", "nombre"),
+            ("Descripción (norm)", "nombre"),
+            ("Nivel 1 (norm)", "nivel1"),
+            ("Nivel 2 (norm)", "nivel2"),
+            ("Nivel 3 (norm)", "nivel3"),
+            ("Genérico (norm)", "generico"),
+            ("Organismo (norm)", "organismo"),
+            ("Tipo Adquisición (norm)", "valor"),
+            ("Descripción del producto/servicio (norm)", "componente"),
+        ]
+        conteos = pd.Series(0, index=df.index)
+        for col, key in campos_map:
+            palabras = self.profile.excluir.get(key, [])
+            if col not in df.columns or not palabras:
+                continue
+            col_str = df[col].fillna('').astype(str)
+            for p in palabras:
+                conteos += col_str.str.contains(
+                    re.escape(p), regex=True, na=False, case=False,
+                ).astype(int)
+        df = df.copy()
+        df['_n_exclusiones_cercanas'] = conteos.values
+        return df
     
     def _aplicar_exclusion(self, df: pd.DataFrame) -> pd.DataFrame:
         campos_map = [

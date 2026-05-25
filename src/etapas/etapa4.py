@@ -22,12 +22,48 @@ class GeneradorReporte(BaseStage):
     """Genera el reporte ejecutivo Excel con formato MP, conversión de divisas y separación por vigencia."""
     REGEX_NUMERO = r'[^\d.]'
     
-    COLUMNAS: ClassVar[list[str]] = ["LINK", "Numero Adquisición", "Nombre", "Descripción", "Región", "Cliente (Organismo)",
+    COLUMNAS: ClassVar[list[str]] = ["Score", "LINK", "Numero Adquisición", "Nombre", "Descripción", "Región", "Cliente (Organismo)",
                 "Fecha Publicación", "Hora Publicación", "Fecha Inicio Preguntas", "Hora Inicio Preguntas",
                 "Fecha Cierre Preguntas", "Hora Cierre Preguntas", "Fecha Apertura", "Hora Apertura",
                 "Fecha Cierre Licitación", "Hora Cierre Licitación", "Fecha Adjudicación", "Hora Adjudicación",
                 "Monto Estimado (CLP)", "Días para cierre", "ONU", "Nivel 1", "Nivel 2", "Nivel 3",
                 "Genérico", "Trazabilidad", "Nivel Confianza"]
+
+    # ── Scoring: pesos por dimensión (suman 1.0) ──
+    SCORE_PESOS: ClassVar[dict[str, float]] = {
+        'relevancia': 0.35,
+        'monto': 0.25,
+        'urgencia': 0.25,
+        'limpieza': 0.15,
+    }
+    # Tramos de monto en CLP → score 1.0-10.0
+    SCORE_TRAMOS_MONTO: ClassVar[list[tuple[int, float]]] = [
+        (6_500_000, 1.0),        # < 100 UTM
+        (65_000_000, 3.0),       # 100–1.000 UTM
+        (325_000_000, 5.0),      # 1.000–5.000 UTM
+        (650_000_000, 7.0),      # 5.000–10.000 UTM
+        (1_300_000_000, 8.5),    # 10.000–20.000 UTM
+    ]
+    SCORE_MONTO_MAX: ClassVar[float] = 10.0
+    # Relevancia: score base por cantidad de keywords matcheadas
+    SCORE_RELEVANCIA_TABLA: ClassVar[list[tuple[int, float]]] = [
+        (1, 3.0), (2, 5.0), (3, 6.5), (4, 7.5),
+    ]
+    SCORE_RELEVANCIA_5PLUS: ClassVar[float] = 8.0
+    SCORE_BONUS_ALTA: ClassVar[float] = 2.0
+    # Urgencia: días → score
+    SCORE_URGENCIA_TABLA: ClassVar[list[tuple[int, int, float]]] = [
+        (0, 2, 2.0),       # demasiado tarde
+        (3, 5, 5.0),       # urgente pero posible
+        (6, 15, 10.0),     # sweet spot
+    ]
+    SCORE_URGENCIA_16PLUS: ClassVar[float] = 10.0
+    SCORE_URGENCIA_SIN_FECHA: ClassVar[float] = 3.0
+    # Limpieza: exclusiones cercanas → score
+    SCORE_LIMPIEZA_TABLA: ClassVar[list[tuple[int, float]]] = [
+        (0, 10.0), (1, 8.0), (2, 6.0), (3, 4.0),
+    ]
+    SCORE_LIMPIEZA_4PLUS: ClassVar[float] = 2.0
     
     SINONIMOS: ClassVar[dict[str, list[str]]] = {
         "Numero Adquisición": ["Numero Adquisición", "Código Externo", "CodigoExterno"],
@@ -103,6 +139,7 @@ class GeneradorReporte(BaseStage):
             self.logger.info(f"[IN] {len(df_raw):,} licitaciones cargadas")
             
             df_procesado = self._preparar_reporte(df_raw)
+            df_procesado = self._aplicar_scoring(df_procesado, df_raw)
             df_vigentes, df_vencidas = self._separar(df_procesado)
             rutas_generadas = self._generar_excel(df_vigentes, df_vencidas)
             
@@ -208,7 +245,7 @@ class GeneradorReporte(BaseStage):
                 )
                 continue
             
-            if col in ["Días para cierre", "Monto Estimado (CLP)"]:
+            if col in ["Días para cierre", "Monto Estimado (CLP)", "Score"]:
                 data[col] = ""
                 continue
             
@@ -310,6 +347,81 @@ class GeneradorReporte(BaseStage):
         except Exception:
             return 999
     
+    # ── Scoring ──────────────────────────────────────────────────────────
+
+    def _aplicar_scoring(self, df: pd.DataFrame, df_raw: pd.DataFrame) -> pd.DataFrame:
+        """Calcula el score 1.0-10.0 para cada licitación y ordena descendente."""
+        self.logger.subsection("Calculando scoring")
+        df = df.copy()
+
+        # Traer columnas auxiliares de etapa2 (si existen)
+        n_matches = df_raw.get('_n_matches_inclusion', pd.Series(0, index=df_raw.index))
+        n_exclusiones = df_raw.get('_n_exclusiones_cercanas', pd.Series(0, index=df_raw.index))
+
+        scores = []
+        for i in range(len(df)):
+            s_rel = self._score_relevancia(
+                int(n_matches.iloc[i]) if i < len(n_matches) else 0,
+                str(df['Nivel Confianza'].iloc[i]),
+            )
+            s_mon = self._score_monto(int(df['Monto Estimado (CLP)'].iloc[i]))
+            s_urg = self._score_urgencia(int(df['Días para cierre'].iloc[i]))
+            s_lim = self._score_limpieza(
+                int(n_exclusiones.iloc[i]) if i < len(n_exclusiones) else 0,
+            )
+            total = (
+                s_rel * self.SCORE_PESOS['relevancia']
+                + s_mon * self.SCORE_PESOS['monto']
+                + s_urg * self.SCORE_PESOS['urgencia']
+                + s_lim * self.SCORE_PESOS['limpieza']
+            )
+            scores.append(round(total, 1))
+
+        df['Score'] = scores
+        df = df.sort_values('Score', ascending=False).reset_index(drop=True)
+        self.logger.info(
+            f"[OK] Scoring aplicado: max={max(scores):.1f} | "
+            f"min={min(scores):.1f} | media={sum(scores)/len(scores):.1f}"
+        ) if scores else None
+        return df
+
+    def _score_relevancia(self, n_matches: int, nivel_confianza: str) -> float:
+        """Score 1.0-10.0 basado en cantidad de keywords + bonus por ALTA confianza."""
+        base = self.SCORE_RELEVANCIA_5PLUS
+        for umbral, valor in self.SCORE_RELEVANCIA_TABLA:
+            if n_matches <= umbral:
+                base = valor
+                break
+        bonus = self.SCORE_BONUS_ALTA if nivel_confianza == 'ALTA' else 0.0
+        return min(10.0, base + bonus)
+
+    def _score_monto(self, monto_clp: int) -> float:
+        """Score 1.0-10.0 por tramos de monto en CLP."""
+        if monto_clp <= 0:
+            return 1.0
+        for limite, score in self.SCORE_TRAMOS_MONTO:
+            if monto_clp <= limite:
+                return score
+        return self.SCORE_MONTO_MAX
+
+    def _score_urgencia(self, dias: int) -> float:
+        """Score 1.0-10.0. Sweet spot 6-15 días. 16+ días mantiene 10.0."""
+        if dias == 999:
+            return self.SCORE_URGENCIA_SIN_FECHA
+        for d_min, d_max, score in self.SCORE_URGENCIA_TABLA:
+            if d_min <= dias <= d_max:
+                return score
+        if dias >= 16:
+            return self.SCORE_URGENCIA_16PLUS
+        return 1.0  # negativo (vencida)
+
+    def _score_limpieza(self, n_exclusiones: int) -> float:
+        """Score 1.0-10.0 inversamente proporcional a exclusiones cercanas."""
+        for umbral, score in self.SCORE_LIMPIEZA_TABLA:
+            if n_exclusiones <= umbral:
+                return score
+        return self.SCORE_LIMPIEZA_4PLUS
+
     def _separar(self, df: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
         self.logger.subsection("Separando vigentes/vencidas")
         vigentes = df[(df['Días para cierre'] >= 0) | (df['Días para cierre'] == 999)].copy()

@@ -11,12 +11,13 @@ from pathlib import Path
 
 import pandas as pd
 from openpyxl import load_workbook
-from openpyxl.formatting.rule import FormulaRule
+from openpyxl.formatting.rule import CellIsRule, FormulaRule
 from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
 
 # Anchos de columna estándar del reporte de licitaciones
 _ANCHOS_COLUMNAS = {
+    "Score": 8,
     "LINK": 12,
     "Numero Adquisición": 18,
     "Nombre": 50,
@@ -50,7 +51,7 @@ _COLS_WRAP = {"Nombre", "Descripción", "Nivel 1", "Nivel 2", "Nivel 3", "Client
 
 # Columnas cortas que se centran
 _COLS_CENTRO = {
-    "LINK", "Días para cierre", "ONU", "Hora Publicación",
+    "Score", "LINK", "Días para cierre", "ONU", "Hora Publicación",
     "Hora Inicio Preguntas", "Hora Cierre Preguntas",
     "Hora Apertura", "Hora Cierre Licitación", "Hora Adjudicación",
 }
@@ -138,10 +139,40 @@ def guardar_formateado_reporte(df: pd.DataFrame, ruta: Path, hoja: str) -> None:
             FormulaRule(formula=[f'{letra_dias}2>14'], stopIfTrue=True,
                         fill=PatternFill(start_color="00AA00", end_color="00AA00", fill_type="solid")))
 
-    # === 6. CONGELAR PRIMERA FILA ===
+    # === 6. FORMATO CONDICIONAL PARA SCORE ===
+    if "Score" in df.columns:
+        col_score = df.columns.get_loc("Score") + 1
+        letra_score = get_column_letter(col_score)
+        rango_score = f"{letra_score}2:{letra_score}{len(df) + 1}"
+
+        # Rojo: score < 4
+        ws.conditional_formatting.add(rango_score,
+            CellIsRule(operator='lessThan', formula=['4'], stopIfTrue=True,
+                       fill=PatternFill(start_color="FF4444", end_color="FF4444", fill_type="solid"),
+                       font=Font(color="FFFFFF", bold=True)))
+
+        # Naranja: 4 <= score < 6
+        ws.conditional_formatting.add(rango_score,
+            CellIsRule(operator='between', formula=['4', '5.9'], stopIfTrue=True,
+                       fill=PatternFill(start_color="FF9900", end_color="FF9900", fill_type="solid"),
+                       font=Font(bold=True)))
+
+        # Amarillo: 6 <= score < 7.5
+        ws.conditional_formatting.add(rango_score,
+            CellIsRule(operator='between', formula=['6', '7.4'], stopIfTrue=True,
+                       fill=PatternFill(start_color="FFDD00", end_color="FFDD00", fill_type="solid"),
+                       font=Font(bold=True)))
+
+        # Verde: score >= 7.5
+        ws.conditional_formatting.add(rango_score,
+            CellIsRule(operator='greaterThanOrEqual', formula=['7.5'], stopIfTrue=True,
+                       fill=PatternFill(start_color="00AA00", end_color="00AA00", fill_type="solid"),
+                       font=Font(color="FFFFFF", bold=True)))
+
+    # === 7. CONGELAR PRIMERA FILA ===
     ws.freeze_panes = "A2"
 
-    # === 7. ALTURA DE FILAS ===
+    # === 8. ALTURA DE FILAS ===
     ws.row_dimensions[1].height = 30
     for row_idx in range(2, len(df) + 2):
         ws.row_dimensions[row_idx].height = 60
