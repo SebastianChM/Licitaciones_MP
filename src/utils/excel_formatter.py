@@ -120,7 +120,7 @@ def guardar_formateado_reporte(df: pd.DataFrame, ruta: Path, hoja: str) -> None:
                 cell.alignment = Alignment(horizontal='right', vertical='center')
 
     # === 5. FORMATO CONDICIONAL PARA DÍAS DE CIERRE ===
-    if "Días para cierre" in df.columns:
+    if "Días para cierre" in df.columns and len(df) > 0:
         col_dias = df.columns.get_loc("Días para cierre") + 1
         letra_dias = get_column_letter(col_dias)
         rango = f"{letra_dias}2:{letra_dias}{len(df) + 1}"
@@ -142,7 +142,7 @@ def guardar_formateado_reporte(df: pd.DataFrame, ruta: Path, hoja: str) -> None:
                         fill=PatternFill(start_color="00AA00", end_color="00AA00", fill_type="solid")))
 
     # === 6. FORMATO CONDICIONAL PARA SCORE ===
-    if "Score" in df.columns:
+    if "Score" in df.columns and len(df) > 0:
         col_score = df.columns.get_loc("Score") + 1
         letra_score = get_column_letter(col_score)
         rango_score = f"{letra_score}2:{letra_score}{len(df) + 1}"

@@ -334,3 +334,43 @@ class TestScoringEndToEnd:
         # Con 0 matches y 0 exclusiones (defaults), score es bajo pero válido
         for s in df_out["Score"]:
             assert 1.0 <= s <= 10.0
+
+    def test_todas_vencidas_genera_excel_sin_crash(self, context, tmp_path):
+        """Si todas las licitaciones están vencidas, el Excel se genera sin crash."""
+        from etapas.etapa4 import GeneradorReporte
+
+        ahora = datetime.now()
+        df_vencidas = pd.DataFrame({
+            "Numero Adquisición": ["VEN-001", "VEN-002"],
+            "Nombre Adquisición": ["Licitación antigua 1", "Licitación antigua 2"],
+            "Monto": ["50000000", "30000000"],
+            "Moneda": ["CLP", "CLP"],
+            "FechaCierre": [
+                (ahora - timedelta(days=30)).strftime("%Y-%m-%d"),
+                (ahora - timedelta(days=60)).strftime("%Y-%m-%d"),
+            ],
+            "Nivel Confianza": ["BAJA", "BAJA"],
+            "_n_matches_inclusion": [1, 1],
+            "_n_exclusiones_cercanas": [0, 0],
+        })
+        archivo = tmp_path / "todas_vencidas.xlsx"
+        df_vencidas.to_excel(archivo, index=False)
+
+        context.add_artifact("etapa3_output", archivo)
+        context.config.PRESENTACION_ORIGINAL_DIR = tmp_path / "presentacion"
+        context.config.PRESENTACION_ORIGINAL_DIR.mkdir()
+        context.config.HISTORICO_DIR = tmp_path / "historico"
+        context.config.HISTORICO_DIR.mkdir()
+
+        with patch.object(GeneradorReporte, '_actualizar_tasas'):
+            etapa = GeneradorReporte()
+            etapa.valor_utm = 65_000
+            etapa.valor_usd = 950
+            etapa.dias_gracia = 0  # No incluir vencidas → 0 vigentes, 0 vencidas
+            result = etapa.run(context)
+
+        # Debe ser exitoso aunque ambos DataFrames estén vacíos
+        assert result.success is True
+        archivo_salida = context.get_artifact("etapa4_output")
+        assert archivo_salida is not None
+        assert archivo_salida.exists()
