@@ -163,6 +163,85 @@ class TestConvertirMontoEdgeCases:
 
 
 # ---------------------------------------------------------------------------
+# _estimar_monto_desde_tipo — fallback UTM range
+# ---------------------------------------------------------------------------
+
+class TestEstimarMontoDesdeTipo:
+    """Tests para el fallback que parsea rangos UTM desde 'Tipo Adquisición'."""
+
+    def test_rango_100_1000_utm_usa_cota_inferior(self):
+        etapa = _reporte(utm=65_000)
+        row = pd.Series({"Tipo Adquisición": "Licitación Pública igual o superior a 100 UTM e inferior a 1.000 UTM"})
+        assert etapa._estimar_monto_desde_tipo(row) == 100 * 65_000
+
+    def test_rango_1000_2000_utm(self):
+        etapa = _reporte(utm=65_000)
+        row = pd.Series({"Tipo Adquisición": "Licitación Pública igual o superior a 1.000 UTM e inferior a 2.000 UTM (LP)"})
+        assert etapa._estimar_monto_desde_tipo(row) == 1_000 * 65_000
+
+    def test_mayor_a_5000_utm(self):
+        etapa = _reporte(utm=65_000)
+        row = pd.Series({"Tipo Adquisición": "Licitación Pública Mayor a 5000 UTM"})
+        assert etapa._estimar_monto_desde_tipo(row) == 5_000 * 65_000
+
+    def test_inferior_a_100_utm_usa_1_utm(self):
+        etapa = _reporte(utm=65_000)
+        row = pd.Series({"Tipo Adquisición": "Licitación pública inferior a 100 UTM"})
+        # Solo cota superior → piso mínimo 1 UTM
+        assert etapa._estimar_monto_desde_tipo(row) == 65_000
+
+    def test_sin_utm_retorna_cero(self):
+        row = pd.Series({"Tipo Adquisición": "Licitación de Servicios"})
+        assert _reporte()._estimar_monto_desde_tipo(row) == 0
+
+    def test_tipo_nan_retorna_cero(self):
+        row = pd.Series({"Tipo Adquisición": float("nan")})
+        assert _reporte()._estimar_monto_desde_tipo(row) == 0
+
+    def test_tipo_vacio_retorna_cero(self):
+        row = pd.Series({"Tipo Adquisición": ""})
+        assert _reporte()._estimar_monto_desde_tipo(row) == 0
+
+    def test_contabiliza_en_stats_monto_rango(self):
+        etapa = _reporte(utm=65_000)
+        etapa._estimar_monto_desde_tipo(
+            pd.Series({"Tipo Adquisición": "Licitación Pública igual o superior a 100 UTM e inferior a 1.000 UTM"})
+        )
+        assert etapa.stats["monto_rango"] == 1
+
+    def test_valor_utm_cero_retorna_cero(self):
+        etapa = _reporte(utm=0)
+        row = pd.Series({"Tipo Adquisición": "Licitación Pública Mayor a 5000 UTM"})
+        assert etapa._estimar_monto_desde_tipo(row) == 0
+
+
+class TestConvertirMontoFallbackUTM:
+    """Tests para el fallback integrado en _convertir_monto."""
+
+    def test_clp_sin_monto_usa_rango_utm(self):
+        etapa = _reporte(utm=65_000)
+        row = pd.Series({
+            "Moneda": "CLP", "Monto": None,
+            "Tipo Adquisición": "Licitación Pública igual o superior a 1.000 UTM e inferior a 2.000 UTM (LP)"
+        })
+        assert etapa._convertir_monto(row) == 1_000 * 65_000
+
+    def test_clp_con_monto_no_usa_fallback(self):
+        etapa = _reporte(utm=65_000)
+        row = pd.Series({
+            "Moneda": "CLP", "Monto": "5000000",
+            "Tipo Adquisición": "Licitación Pública Mayor a 5000 UTM"
+        })
+        # Monto directo tiene prioridad → no fallback
+        assert etapa._convertir_monto(row) == 5_000_000
+        assert etapa.stats["monto_rango"] == 0
+
+    def test_sin_monto_ni_tipo_retorna_cero(self):
+        row = pd.Series({"Moneda": "CLP", "Monto": None, "Tipo Adquisición": "Licitación de Servicios"})
+        assert _reporte()._convertir_monto(row) == 0
+
+
+# ---------------------------------------------------------------------------
 # _calcular_dias
 # ---------------------------------------------------------------------------
 

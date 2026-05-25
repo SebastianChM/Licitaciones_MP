@@ -89,13 +89,17 @@ class GeneradorReporte(BaseStage):
         "Nivel Confianza": ["Nivel Confianza"]
     }
     
+    # Regex para extraer cota inferior del rango UTM en "Tipo Adquisición"
+    _RE_UTM_LOWER = re.compile(r'(?:superior|mayor)\s+a\s+([\d.]+)\s*UTM', re.IGNORECASE)
+    _RE_UTM_UPPER_ONLY = re.compile(r'inferior\s+a\s+([\d.]+)\s*UTM', re.IGNORECASE)
+
     def __init__(self) -> None:
         super().__init__()
         self.valor_utm = 0.0
         self.valor_usd = 1000.0
         self.dias_gracia = 0
         self.tz_chile = pytz.timezone('America/Santiago')
-        self.stats = {'total': 0, 'vigentes': 0, 'vencidas': 0, 'utm': 0, 'usd': 0, 'errores': 0}
+        self.stats = {'total': 0, 'vigentes': 0, 'vencidas': 0, 'utm': 0, 'usd': 0, 'errores': 0, 'monto_rango': 0, 'monto_no_publicado': 0}
 
     @property
     def name(self) -> str:
@@ -140,6 +144,15 @@ class GeneradorReporte(BaseStage):
             
             df_procesado = self._preparar_reporte(df_raw)
             df_procesado = self._aplicar_scoring(df_procesado, df_raw)
+
+            # Marcar filas sin monto como "No publicado" (después de scoring)
+            mask_sin_monto = df_procesado['Monto Estimado (CLP)'] == 0
+            n_sin_monto = mask_sin_monto.sum()
+            if n_sin_monto > 0:
+                self.stats['monto_no_publicado'] = int(n_sin_monto)
+                df_procesado['Monto Estimado (CLP)'] = df_procesado['Monto Estimado (CLP)'].astype(object)
+                df_procesado.loc[mask_sin_monto, 'Monto Estimado (CLP)'] = 'No publicado'
+
             df_vigentes, df_vencidas = self._separar(df_procesado)
             rutas_generadas = self._generar_excel(df_vigentes, df_vencidas)
             
@@ -298,42 +311,70 @@ class GeneradorReporte(BaseStage):
 
     def _convertir_monto(self, row: pd.Series) -> int:
         try:
-            # Buscar moneda: primero campo directo, luego columna API (producida por Etapa 3)
-            # Nota: pd.NaN es truthy en Python → no usar `or` directamente con valores de Series
             moneda = str(self._campo(row, 'Moneda', 'API_Moneda') or '').upper().strip()
-            # Buscar monto: primero campo directo, luego columna API
             monto_raw = str(self._campo(row, 'Monto', 'API_Monto') or '0')
 
+            resultado = 0
             if moneda in ['CLP', 'PESO']:
-                # Strip ALL non-digit chars — handles thousands separators like '5.000.000'
                 monto_str = re.sub(r'[^\d]', '', monto_raw)
-                return int(monto_str) if monto_str else 0
+                resultado = int(monto_str) if monto_str else 0
 
-            if 'UTM' in moneda:
+            elif 'UTM' in moneda:
                 tipo = str(row.get('Tipo Adquisición', ''))
                 nums = re.findall(r'(\d+(?:\.\d+)?)', tipo.replace('.', '').replace(',', '.'))
                 if nums:
                     self.stats['utm'] += 1
-                    return int(float(nums[0]) * self.valor_utm)
-                # Sin número en Tipo Adquisición: monto indeterminado, no es error de conversión
-                return 0
+                    resultado = int(float(nums[0]) * self.valor_utm)
 
-            if moneda in ['USD', 'DOLAR']:
+            elif moneda in ['USD', 'DOLAR']:
                 monto_str = re.sub(self.REGEX_NUMERO, '', monto_raw)
-                if not monto_str:
-                    return 0
-                monto = float(monto_str)
-                if monto > 0:
-                    self.stats['usd'] += 1
-                    return int(monto * self.valor_usd)
+                if monto_str:
+                    monto = float(monto_str)
+                    if monto > 0:
+                        self.stats['usd'] += 1
+                        resultado = int(monto * self.valor_usd)
 
-            # Fallback genérico: strip de TODOS los no-dígitos (igual que CLP) para soportar
-            # formato chileno de miles ("2.000.000") sin generar ValueError en float()
-            monto_str = re.sub(r'[^\d]', '', monto_raw)
-            return int(monto_str) if monto_str else 0
+            else:
+                monto_str = re.sub(r'[^\d]', '', monto_raw)
+                resultado = int(monto_str) if monto_str else 0
+
+            # Fallback: estimar desde rango UTM en "Tipo Adquisición"
+            if resultado == 0:
+                resultado = self._estimar_monto_desde_tipo(row)
+
+            return resultado
         except Exception:
             self.stats['errores'] += 1
             return 0
+
+    def _estimar_monto_desde_tipo(self, row: pd.Series) -> int:
+        """Estima monto CLP a partir del rango UTM en 'Tipo Adquisición'.
+
+        Usa la cota inferior del rango (ej. '100 UTM - 1.000 UTM' → 100 UTM).
+        Si solo hay cota superior ('inferior a 100 UTM'), usa 1 UTM como piso.
+        """
+        tipo = str(row.get('Tipo Adquisición', ''))
+        if not tipo or tipo == 'nan':
+            return 0
+
+        if self.valor_utm <= 0:
+            return 0
+
+        # "igual o superior a 100 UTM" / "Mayor a 5000 UTM" → cota inferior
+        m = self._RE_UTM_LOWER.search(tipo)
+        if m:
+            utm_val = int(m.group(1).replace('.', ''))
+            if utm_val > 0:
+                self.stats['monto_rango'] += 1
+                return int(utm_val * self.valor_utm)
+
+        # "inferior a 100 UTM" (solo cota superior) → piso mínimo 1 UTM
+        m = self._RE_UTM_UPPER_ONLY.search(tipo)
+        if m:
+            self.stats['monto_rango'] += 1
+            return int(self.valor_utm)  # 1 UTM
+
+        return 0
     
     def _calcular_dias(self, row: pd.Series) -> int:
         try:
@@ -470,6 +511,8 @@ class GeneradorReporte(BaseStage):
 💱 Conversiones:
    - UTM→CLP:    {s['utm']:,}
    - USD→CLP:    {s['usd']:,}
+   - Rango UTM:  {s['monto_rango']:,}
+   - No publicado: {s['monto_no_publicado']:,}
    - Errores:    {s['errores']:,}
 
 💰 Tasas:
