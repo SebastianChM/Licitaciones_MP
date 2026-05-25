@@ -113,6 +113,8 @@ def guardar_formateado_reporte(df: pd.DataFrame, ruta: Path, hoja: str) -> None:
                 cell.alignment = Alignment(wrap_text=True, vertical='top')
             elif col_name in _COLS_CENTRO:
                 cell.alignment = Alignment(horizontal='center', vertical='center')
+                if col_name == "Score":
+                    cell.number_format = '0.0'
             elif col_name == "Monto Estimado (CLP)":
                 cell.number_format = '#,##0'
                 cell.alignment = Alignment(horizontal='right', vertical='center')
@@ -145,25 +147,26 @@ def guardar_formateado_reporte(df: pd.DataFrame, ruta: Path, hoja: str) -> None:
         letra_score = get_column_letter(col_score)
         rango_score = f"{letra_score}2:{letra_score}{len(df) + 1}"
 
+        # Cascada con stopIfTrue — sin gaps entre rangos.
         # Rojo: score < 4
         ws.conditional_formatting.add(rango_score,
             CellIsRule(operator='lessThan', formula=['4'], stopIfTrue=True,
                        fill=PatternFill(start_color="FF4444", end_color="FF4444", fill_type="solid"),
                        font=Font(color="FFFFFF", bold=True)))
 
-        # Naranja: 4 <= score < 6
+        # Naranja: score < 6 (los < 4 ya fueron capturados arriba)
         ws.conditional_formatting.add(rango_score,
-            CellIsRule(operator='between', formula=['4', '5.9'], stopIfTrue=True,
+            CellIsRule(operator='lessThan', formula=['6'], stopIfTrue=True,
                        fill=PatternFill(start_color="FF9900", end_color="FF9900", fill_type="solid"),
                        font=Font(bold=True)))
 
-        # Amarillo: 6 <= score < 7.5
+        # Amarillo: score < 7.5 (los < 6 ya fueron capturados)
         ws.conditional_formatting.add(rango_score,
-            CellIsRule(operator='between', formula=['6', '7.4'], stopIfTrue=True,
+            CellIsRule(operator='lessThan', formula=['7.5'], stopIfTrue=True,
                        fill=PatternFill(start_color="FFDD00", end_color="FFDD00", fill_type="solid"),
                        font=Font(bold=True)))
 
-        # Verde: score >= 7.5
+        # Verde: score >= 7.5 (todo lo que queda)
         ws.conditional_formatting.add(rango_score,
             CellIsRule(operator='greaterThanOrEqual', formula=['7.5'], stopIfTrue=True,
                        fill=PatternFill(start_color="00AA00", end_color="00AA00", fill_type="solid"),

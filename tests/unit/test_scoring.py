@@ -202,6 +202,18 @@ class TestAplicarScoring:
         result = gen._aplicar_scoring(df, df_raw)
         assert result["Score"].iloc[0] > 0
 
+    def test_nan_en_columnas_raw(self, gen: GeneradorReporte) -> None:
+        """NaN en _n_matches_inclusion/_n_exclusiones_cercanas no debe crashear."""
+        df, _ = self._make_df([100_000_000, 50_000_000], [10, 7])
+        df_raw = pd.DataFrame({
+            "_n_matches_inclusion": [2, float("nan")],
+            "_n_exclusiones_cercanas": [float("nan"), 1],
+        })
+        result = gen._aplicar_scoring(df, df_raw)
+        assert len(result) == 2
+        for s in result["Score"]:
+            assert 1.0 <= s <= 10.0
+
     def test_score_rango_valido(self, gen: GeneradorReporte) -> None:
         """Todos los scores deben estar en [1.0, 10.0]."""
         df, df_raw = self._make_df(

@@ -354,9 +354,12 @@ class GeneradorReporte(BaseStage):
         self.logger.subsection("Calculando scoring")
         df = df.copy()
 
-        # Traer columnas auxiliares de etapa2 (si existen)
+        # Traer columnas auxiliares de etapa2 (si existen); forzar int para
+        # evitar crash por NaN si etapa3 reindexó/hizo merge.
         n_matches = df_raw.get('_n_matches_inclusion', pd.Series(0, index=df_raw.index))
+        n_matches = n_matches.fillna(0).astype(int)
         n_exclusiones = df_raw.get('_n_exclusiones_cercanas', pd.Series(0, index=df_raw.index))
+        n_exclusiones = n_exclusiones.fillna(0).astype(int)
 
         scores = []
         for i in range(len(df)):
@@ -379,10 +382,11 @@ class GeneradorReporte(BaseStage):
 
         df['Score'] = scores
         df = df.sort_values('Score', ascending=False).reset_index(drop=True)
-        self.logger.info(
-            f"[OK] Scoring aplicado: max={max(scores):.1f} | "
-            f"min={min(scores):.1f} | media={sum(scores)/len(scores):.1f}"
-        ) if scores else None
+        if scores:
+            self.logger.info(
+                f"[OK] Scoring aplicado: max={max(scores):.1f} | "
+                f"min={min(scores):.1f} | media={sum(scores)/len(scores):.1f}"
+            )
         return df
 
     def _score_relevancia(self, n_matches: int, nivel_confianza: str) -> float:
