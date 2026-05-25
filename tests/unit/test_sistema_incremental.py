@@ -8,11 +8,10 @@ Cubre:
 - _generar_sugerencias_pivot: escritura JSON y log top-sugerencias
 """
 import json
-import pytest
-import pandas as pd
-from pathlib import Path
-from unittest.mock import MagicMock, patch, call
+from unittest.mock import patch
 
+import pandas as pd
+import pytest
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -268,13 +267,13 @@ class TestCargarDatosActualesRamas:
 class TestMain:
 
     def test_main_retorna_0_en_exito(self):
-        from sistema_incremental import main, SistemaAnalisisIncremental
+        from sistema_incremental import SistemaAnalisisIncremental, main
         with patch.object(SistemaAnalisisIncremental, 'ejecutar_analisis_completo'):
             rc = main()
         assert rc == 0
 
     def test_main_retorna_1_en_excepcion(self):
-        from sistema_incremental import main, SistemaAnalisisIncremental
+        from sistema_incremental import SistemaAnalisisIncremental, main
         with patch.object(SistemaAnalisisIncremental, 'ejecutar_analisis_completo',
                           side_effect=RuntimeError("fallo")):
             rc = main()

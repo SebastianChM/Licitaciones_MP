@@ -6,36 +6,17 @@ licitaciones nuevas.
 
 Uso:
     python src/reporte_incremental.py
-    python src/reporte_incremental.py --standalone
 """
 
 import sys
-import argparse
-from pathlib import Path
 
-# Ajustar sys.path para ejecucion standalone desde raiz o desde src/
-_SRC = Path(__file__).parent
-if str(_SRC) not in sys.path:
-    sys.path.insert(0, str(_SRC))
-
-from utils.config import Config
-from utils.logger import ProjectLogger
 from core.context import PipelineContext
 from etapas.etapa5 import GeneradorReporteIncremental as _Etapa5GeneradorReporte
+from utils.config import Config
+from utils.logger import ProjectLogger
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(
-        description='Genera reporte incremental preservando trabajo manual del equipo'
-    )
-    parser.add_argument(
-        '--standalone',
-        action='store_true',
-        default=True,
-        help='Permitir leer archivos del disco sin depender de una etapa anterior (por defecto: True)'
-    )
-    args = parser.parse_args()
-
     config = Config()
     logger = ProjectLogger('reporte_incremental_entry', config.LOG_DIR)
 
@@ -44,7 +25,8 @@ def main() -> int:
         logger.info("Delegando en GeneradorReporteIncremental (Etapa 5)...")
 
         context = PipelineContext(config=config)
-        context.flags['allow_fallback'] = args.standalone
+        # Este entrypoint siempre opera en modo standalone (lee del disco sin etapas previas)
+        context.flags['allow_fallback'] = True
 
         etapa5 = _Etapa5GeneradorReporte()
         resultado = etapa5.run(context)

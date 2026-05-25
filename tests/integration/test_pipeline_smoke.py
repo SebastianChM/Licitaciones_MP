@@ -10,11 +10,11 @@ No requieren archivos reales (Excel de Mercado Público ni API key):
 Ejecutar con:  pytest tests/integration/ -v -m integration
 """
 
-import pytest
-import pandas as pd
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
+import pandas as pd
+import pytest
 
 pytestmark = pytest.mark.integration
 
@@ -100,19 +100,22 @@ class TestEtapa1Integracion:
 class TestEtapa2Integracion:
     def test_etapa2_filtra_y_registra_artefacto(self, context, tmp_path, excel_licitaciones):
         """Etapa 2 produce archivo filtrado y lo registra como artefacto."""
+        from core.filter_profile import EquipoInfo, FilterProfile
         from etapas.etapa2 import FiltradorLicitaciones
 
         context.add_artifact("etapa0_output", excel_licitaciones)
         context.config.FILTRADO_DIR = tmp_path
 
-        filtros_mock = {
-            "incluir": {"nombre": ["consultoria", "ti"], "nivel1": [], "nivel2": [], "nivel3": []},
-            "excluir": {k: [] for k in ["nombre","nivel1","nivel2","nivel3","generico","componente","organismo","valor"]},
-            "bypass": [],
-        }
+        perfil_mock = FilterProfile(
+            equipo=EquipoInfo(codigo="TEST", nombre="Test", hoja_filtros="06-Test"),
+            incluir={"nombre": ["consultoria", "ti"], "nivel1": [], "nivel2": [], "nivel3": []},
+            excluir={k: [] for k in ("nombre","nivel1","nivel2","nivel3","generico","componente","organismo","valor")},
+            bypass=(),
+            exclusion_dura=(),
+        )
 
         with patch.object(FiltradorLicitaciones, '_validar_prerequisitos'), \
-             patch.object(FiltradorLicitaciones, '_cargar_filtros', return_value=filtros_mock):
+             patch.object(FiltradorLicitaciones, '_cargar_perfil', return_value=perfil_mock):
             etapa = FiltradorLicitaciones()
             result = etapa.run(context)
 
@@ -122,19 +125,22 @@ class TestEtapa2Integracion:
 
     def test_etapa2_stats_coherentes(self, context, tmp_path, excel_licitaciones):
         """Stats de filtrado son numéricamente coherentes."""
+        from core.filter_profile import EquipoInfo, FilterProfile
         from etapas.etapa2 import FiltradorLicitaciones
 
         context.add_artifact("etapa0_output", excel_licitaciones)
         context.config.FILTRADO_DIR = tmp_path
 
-        filtros_mock = {
-            "incluir": {"nombre": ["consultoria"], "nivel1": [], "nivel2": [], "nivel3": []},
-            "excluir": {k: [] for k in ["nombre","nivel1","nivel2","nivel3","generico","componente","organismo","valor"]},
-            "bypass": [],
-        }
+        perfil_mock = FilterProfile(
+            equipo=EquipoInfo(codigo="TEST", nombre="Test", hoja_filtros="06-Test"),
+            incluir={"nombre": ["consultoria"], "nivel1": [], "nivel2": [], "nivel3": []},
+            excluir={k: [] for k in ("nombre","nivel1","nivel2","nivel3","generico","componente","organismo","valor")},
+            bypass=(),
+            exclusion_dura=(),
+        )
 
         with patch.object(FiltradorLicitaciones, '_validar_prerequisitos'), \
-             patch.object(FiltradorLicitaciones, '_cargar_filtros', return_value=filtros_mock):
+             patch.object(FiltradorLicitaciones, '_cargar_perfil', return_value=perfil_mock):
             etapa = FiltradorLicitaciones()
             result = etapa.run(context)
 

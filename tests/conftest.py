@@ -4,11 +4,10 @@ Fixtures compartidos para toda la suite de tests.
 Disponibles en tests/ y tests/unit/ sin import explícito (pytest los inyecta).
 """
 
-import pytest
-import pandas as pd
-from pathlib import Path
 from unittest.mock import MagicMock
 
+import pandas as pd
+import pytest
 
 # ---------------------------------------------------------------------------
 # Config y contexto
@@ -18,7 +17,7 @@ from unittest.mock import MagicMock
 def config():
     """Config con valores de test (no carga .env real)."""
     from utils.config import Config
-    return Config(env="testing", TEST_MODE=True, TEST_LIMIT=10)
+    return Config(env="testing")
 
 
 @pytest.fixture

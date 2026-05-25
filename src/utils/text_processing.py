@@ -1,11 +1,11 @@
-# Utilidades de texto para el pipeline
-# Normalización y búsqueda de palabras clave
+"""Funciones de normalización y búsqueda de texto para el pipeline."""
 
-import unicodedata
-import re
-from typing import Any, Optional
-import pandas as pd
 import difflib
+import re
+import unicodedata
+from typing import Any
+
+import pandas as pd
 
 
 def normalizar_texto(texto: Any, uppercase: bool = True, remover_espacios_extra: bool = True) -> str:
@@ -34,16 +34,7 @@ def normalizar_texto(texto: Any, uppercase: bool = True, remover_espacios_extra:
 
 
 def limpiar_texto_excel(texto: Any) -> str:
-    """
-    Limpia texto que viene de celdas de Excel.
-    Remueve saltos de línea, tabulaciones y caracteres especiales.
-    
-    Args:
-        texto: Texto a limpiar
-    
-    Returns:
-        str: Texto limpio
-    """
+    """Limpia texto de celdas Excel: saltos de línea, tabulaciones y caracteres de control."""
     if pd.isna(texto) or texto is None:
         return ""
     
@@ -52,8 +43,8 @@ def limpiar_texto_excel(texto: Any) -> str:
     # Remover saltos de línea y tabulaciones
     texto = texto.replace('\n', ' ').replace('\r', ' ').replace('\t', ' ')
     
-    # Remover caracteres de control
-    texto = ''.join(char for char in texto if ord(char) >= 32 or char in '\n\r\t')
+    # Remover caracteres de control (ord < 32 que pudieran quedar)
+    texto = ''.join(char for char in texto if ord(char) >= 32)
     
     # Normalizar espacios
     texto = re.sub(r'\s+', ' ', texto).strip()
@@ -62,20 +53,7 @@ def limpiar_texto_excel(texto: Any) -> str:
 
 
 def calcular_similitud(texto1: str, texto2: str) -> float:
-    """
-    Calcula similitud entre dos textos usando SequenceMatcher.
-    
-    Args:
-        texto1: Primer texto
-        texto2: Segundo texto
-    
-    Returns:
-        float: Similitud entre 0 y 1 (1 = idénticos)
-    
-    Examples:
-        >>> calcular_similitud("Servicios de Consultoría", "Servicio de Consultoria")
-        0.95
-    """
+    """Calcula similitud [0..1] entre dos textos normalizados usando SequenceMatcher."""
     # Normalizar ambos textos
     t1 = normalizar_texto(texto1)
     t2 = normalizar_texto(texto2)
@@ -93,23 +71,7 @@ def encontrar_similares(
     umbral: float = 0.85,
     max_resultados: int = 5
 ) -> list:
-    """
-    Encuentra valores similares en una lista.
-    
-    Args:
-        valor: Valor a buscar
-        lista_valores: Lista donde buscar
-        umbral: Umbral de similitud (0-1)
-        max_resultados: Máximo número de resultados
-    
-    Returns:
-        list: Lista de tuplas (valor_similar, similitud)
-    
-    Examples:
-        >>> lista = ["Consultoría", "Consultoria", "Asesoría", "Servicios"]
-        >>> encontrar_similares("Consultoria", lista, umbral=0.8)
-        [('Consultoría', 0.95), ('Consultoria', 1.0)]
-    """
+    """Devuelve lista de (valor, similitud) de los más similares al texto dado en la lista."""
     if not valor or not lista_valores:
         return []
     
@@ -132,19 +94,9 @@ def encontrar_similares(
 def extraer_palabras_clave(
     texto: str,
     min_longitud: int = 3,
-    palabras_comunes: Optional[set] = None
+    palabras_comunes: set | None = None
 ) -> set:
-    """
-    Extrae palabras clave de un texto.
-    
-    Args:
-        texto: Texto del cual extraer palabras
-        min_longitud: Longitud mínima de palabras
-        palabras_comunes: Set de palabras a excluir (stopwords)
-    
-    Returns:
-        set: Conjunto de palabras clave
-    """
+    """Extrae palabras clave del texto filtrando stopwords y términos cortos."""
     if not texto:
         return set()
     
@@ -173,23 +125,7 @@ def contiene_palabras_clave(
     palabras_clave: list,
     operador: str = 'OR'
 ) -> bool:
-    """
-    Verifica si un texto contiene palabras clave.
-    
-    Args:
-        texto: Texto a verificar
-        palabras_clave: Lista de palabras clave a buscar
-        operador: 'OR' (cualquiera) o 'AND' (todas)
-    
-    Returns:
-        bool: True si cumple la condición
-    
-    Examples:
-        >>> contiene_palabras_clave("Consultoría de TI", ["consultoria", "ti"], "OR")
-        True
-        >>> contiene_palabras_clave("Servicios varios", ["consultoria", "ti"], "AND")
-        False
-    """
+    """Verifica si el texto contiene palabras clave (OR por defecto, AND si se especifica)."""
     if not texto or not palabras_clave:
         return False
     
@@ -206,18 +142,8 @@ def contiene_palabras_clave(
         return any(matches)
 
 
-def truncar_texto(texto: Optional[str], max_length: int = 100, sufijo: str = "...") -> str:
-    """
-    Trunca texto a una longitud máxima.
-    
-    Args:
-        texto: Texto a truncar
-        max_length: Longitud máxima
-        sufijo: Sufijo a agregar si se trunca
-    
-    Returns:
-        str: Texto truncado
-    """
+def truncar_texto(texto: str | None, max_length: int = 100, sufijo: str = "...") -> str:
+    """Trunca el texto a max_length caracteres añadiendo sufijo si se corta."""
     if texto is None:
         return ""
     if not texto or len(texto) <= max_length:
@@ -227,21 +153,7 @@ def truncar_texto(texto: Optional[str], max_length: int = 100, sufijo: str = "..
 
 
 def limpiar_codigo_licitacion(codigo: Any) -> str:
-    """
-    Limpia y formatea código de licitación.
-    
-    Args:
-        codigo: Código de licitación (puede tener formato variado)
-    
-    Returns:
-        str: Código limpio (solo números y guiones)
-    
-    Examples:
-        >>> limpiar_codigo_licitacion("1234-56-LP21")
-        '1234-56-LP21'
-        >>> limpiar_codigo_licitacion("  1234 - 56 - LP21  ")
-        '1234-56-LP21'
-    """
+    """Limpia y normaliza un código de licitación eliminando espacios y caracteres extraños."""
     if pd.isna(codigo) or codigo is None:
         return ""
     

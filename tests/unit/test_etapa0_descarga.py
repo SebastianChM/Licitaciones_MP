@@ -11,15 +11,14 @@ Cubre (sin red real):
 """
 import io
 import zipfile
-import shutil
-import pytest
-import pandas as pd
 from datetime import datetime, timedelta
 from pathlib import Path
-from unittest.mock import patch, MagicMock, PropertyMock
+from unittest.mock import MagicMock, patch
+
+import pandas as pd
+import pytest
 
 from etapas.etapa0 import Etapa0Descarga
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -185,6 +184,7 @@ class TestValidarConexion:
     def test_conexion_ok_200(self, tmp_path, logger_mock):
         stage, _ = _stage(tmp_path, logger_mock)
         mock_response = MagicMock()
+        mock_response.status_code = 200
         mock_response.headers = {}
         stage.http.head.return_value = mock_response  # type: ignore[attr-defined]
 
@@ -193,6 +193,7 @@ class TestValidarConexion:
     def test_conexion_ok_registra_tamano_si_content_length(self, tmp_path, logger_mock):
         stage, _ = _stage(tmp_path, logger_mock)
         mock_response = MagicMock()
+        mock_response.status_code = 200
         mock_response.headers = {"Content-Length": "5242880"}  # 5 MB
         stage.http.head.return_value = mock_response  # type: ignore[attr-defined]
 

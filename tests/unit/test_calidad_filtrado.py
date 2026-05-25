@@ -11,11 +11,13 @@ Verifican que los cambios al PIVOT_MAESTRO:
 Ejecutar: pytest tests/unit/test_calidad_filtrado.py -v
 """
 
-import pytest
-import pandas as pd
 from unittest.mock import MagicMock
-from etapas.etapa2 import FiltradorLicitaciones
 
+import pandas as pd
+import pytest
+
+from core.filter_profile import EquipoInfo, FilterProfile
+from etapas.etapa2 import FiltradorLicitaciones
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -36,7 +38,7 @@ def _row(nombre: str, descripcion: str = "", nivel1: str = "Servicios",
         nivel1, "", "", generico,
         organismo, "Licitación Pública", "",
         "1000000", "CLP",
-    ]))
+    ], strict=False))
 
 
 def _df(*rows: dict) -> pd.DataFrame:
@@ -44,8 +46,20 @@ def _df(*rows: dict) -> pd.DataFrame:
 
 
 def _etapa(filtros: dict) -> FiltradorLicitaciones:
+    """Crea una etapa con un FilterProfile construido desde el dict legacy de filtros.
+
+    Acepta la forma histórica:
+        {"incluir": {...}, "excluir": {...}, "bypass": [...], "exclusion_dura": [...]}
+    """
     etapa = FiltradorLicitaciones()
-    etapa.filtros = filtros
+    equipo = EquipoInfo(codigo="TEST", nombre="Test", hoja_filtros="06-Test")
+    etapa.profile = FilterProfile(
+        equipo=equipo,
+        incluir=dict(filtros.get("incluir", {})),
+        excluir=dict(filtros.get("excluir", {})),
+        bypass=tuple(filtros.get("bypass", [])),
+        exclusion_dura=tuple(filtros.get("exclusion_dura", [])),
+    )
     etapa._logger = MagicMock()
     return etapa
 
@@ -246,7 +260,7 @@ class TestFalsosNegativos:
 
     def test_consultoria_mejoramiento_capturada(self):
         """'Consultoria Mejoramiento Calle' → debe pasar (bypass 'consultoria mejoramiento')."""
-        etapa = _etapa(FILTROS_MP)
+        _etapa(FILTROS_MP)
         # Ponemos "mejoramiento calle" en exclusión también para simular el PIVOT viejo
         filtros_copia = {k: (dict(v) if isinstance(v, dict) else list(v))
                         for k, v in FILTROS_MP.items()}
@@ -354,7 +368,6 @@ class TestVerdaderosNegativos:
 
     def test_cancha_excluida(self):
         """'Construccion Cancha Multiuso' → excluida por 'cancha'."""
-        filtros_copia = {**FILTROS_MP}
         etapa = _etapa(FILTROS_MP)
         df = _df(_row("Construccion cancha multiuso sector norte"))
         resultado = _run(etapa, df)

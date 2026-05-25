@@ -1,21 +1,18 @@
 """
 Tests adicionales para Etapa5 — cubre los huecos de cobertura restantes:
-- _crear_reporte_inicial  → llama a _guardar_formateado
-- _guardar_formateado     → Excel con formato complejo
+- _crear_reporte_inicial  → llama a guardar_formateado_reporte
+- guardar_formateado_reporte (módulo compartido) → Excel con formato complejo
 - _generar_analisis_cambios
 - _guardar_sugerencias_pivot
-- _encontrar_fila_por_codigo
 - validate_inputs fallback
 - run() success path
 """
 import json
-import pytest
-import pandas as pd
-from datetime import datetime, timedelta
-from pathlib import Path
-from unittest.mock import patch, MagicMock
-from openpyxl import Workbook, load_workbook
+from unittest.mock import MagicMock, patch
 
+import pandas as pd
+import pytest
+from openpyxl import Workbook, load_workbook
 
 # ---------------------------------------------------------------------------
 # Fixtures locales compartidas
@@ -24,8 +21,8 @@ from openpyxl import Workbook, load_workbook
 @pytest.fixture
 def stage(config, logger_mock, tmp_path):
     """GeneradorReporteIncremental preparado con rutas temporales."""
-    from etapas.etapa5 import GeneradorReporteIncremental
     from core.context import PipelineContext
+    from etapas.etapa5 import GeneradorReporteIncremental
     s = GeneradorReporteIncremental()
     ctx = PipelineContext(config=config)
     s._context = ctx
@@ -127,8 +124,9 @@ class TestCrearReporteInicial:
 class TestGuardarFormateado:
 
     def test_genera_excel_con_encabezados(self, stage, df_con_todas_columnas, tmp_path):
+        from utils.excel_formatter import guardar_formateado_reporte
         ruta = tmp_path / "salida.xlsx"
-        stage._guardar_formateado(df_con_todas_columnas, ruta, "Vigentes")
+        guardar_formateado_reporte(df_con_todas_columnas, ruta, "Vigentes")
         assert ruta.exists()
         wb = load_workbook(ruta)
         ws = wb["Vigentes"]
@@ -136,16 +134,18 @@ class TestGuardarFormateado:
         assert ws.cell(1, 1).value == "Numero Adquisición"
 
     def test_congela_primera_fila(self, stage, df_minimo, tmp_path):
+        from utils.excel_formatter import guardar_formateado_reporte
         ruta = tmp_path / "salida.xlsx"
-        stage._guardar_formateado(df_minimo, ruta, "Vigentes")
+        guardar_formateado_reporte(df_minimo, ruta, "Vigentes")
         wb = load_workbook(ruta)
         ws = wb["Vigentes"]
         assert ws is not None
         assert ws.freeze_panes == "A2"
 
     def test_link_convertido_en_hipervinculo(self, stage, df_con_todas_columnas, tmp_path):
+        from utils.excel_formatter import guardar_formateado_reporte
         ruta = tmp_path / "salida.xlsx"
-        stage._guardar_formateado(df_con_todas_columnas, ruta, "Vigentes")
+        guardar_formateado_reporte(df_con_todas_columnas, ruta, "Vigentes")
         wb = load_workbook(ruta)
         ws = wb["Vigentes"]
         assert ws is not None
@@ -154,41 +154,41 @@ class TestGuardarFormateado:
         assert cell.hyperlink is not None or cell.value in ("Ver Licitación", df_con_todas_columnas["LINK"].iloc[0])
 
     def test_formato_condicional_dias_cierre(self, stage, df_con_todas_columnas, tmp_path):
-        """Días para cierre = 8 activa formato condicional amarillo."""
+        from utils.excel_formatter import guardar_formateado_reporte
         ruta = tmp_path / "salida.xlsx"
-        stage._guardar_formateado(df_con_todas_columnas, ruta, "Vigentes")
+        guardar_formateado_reporte(df_con_todas_columnas, ruta, "Vigentes")
         wb = load_workbook(ruta)
         ws = wb["Vigentes"]
         assert ws is not None
-        # Al menos 1 regla de formato condicional debe existir
         assert len(list(ws.conditional_formatting)) >= 1
 
     def test_altura_encabezado(self, stage, df_minimo, tmp_path):
+        from utils.excel_formatter import guardar_formateado_reporte
         ruta = tmp_path / "salida.xlsx"
-        stage._guardar_formateado(df_minimo, ruta, "Vigentes")
+        guardar_formateado_reporte(df_minimo, ruta, "Vigentes")
         wb = load_workbook(ruta)
         ws = wb["Vigentes"]
         assert ws is not None
         assert ws.row_dimensions[1].height == 30
 
     def test_sin_columna_dias_cierre_no_crash(self, stage, tmp_path):
-        """Si el DataFrame no tiene 'Días para cierre', no debe fallar."""
+        from utils.excel_formatter import guardar_formateado_reporte
         df = pd.DataFrame([{"Nombre": "Consultoría", "Link": "http://x.cl"}])
         ruta = tmp_path / "salida.xlsx"
-        stage._guardar_formateado(df, ruta, "Vigentes")
+        guardar_formateado_reporte(df, ruta, "Vigentes")
         assert ruta.exists()
 
     def test_sin_columna_link_no_crash(self, stage, tmp_path):
-        """Si el DataFrame no tiene 'LINK', no debe fallar."""
+        from utils.excel_formatter import guardar_formateado_reporte
         df = pd.DataFrame([{"Nombre": "Consultoría", "Días para cierre": 5}])
         ruta = tmp_path / "salida.xlsx"
-        stage._guardar_formateado(df, ruta, "Vigentes")
+        guardar_formateado_reporte(df, ruta, "Vigentes")
         assert ruta.exists()
 
     def test_alineacion_columnas_largas(self, stage, df_con_todas_columnas, tmp_path):
-        """Columnas como 'Nombre' deben tener wrap_text."""
+        from utils.excel_formatter import guardar_formateado_reporte
         ruta = tmp_path / "salida.xlsx"
-        stage._guardar_formateado(df_con_todas_columnas, ruta, "Vigentes")
+        guardar_formateado_reporte(df_con_todas_columnas, ruta, "Vigentes")
         wb = load_workbook(ruta)
         ws = wb["Vigentes"]
         assert ws is not None
@@ -197,8 +197,9 @@ class TestGuardarFormateado:
         assert cell.alignment.wrap_text is True
 
     def test_formato_monto_numero(self, stage, df_con_todas_columnas, tmp_path):
+        from utils.excel_formatter import guardar_formateado_reporte
         ruta = tmp_path / "salida.xlsx"
-        stage._guardar_formateado(df_con_todas_columnas, ruta, "Vigentes")
+        guardar_formateado_reporte(df_con_todas_columnas, ruta, "Vigentes")
         wb = load_workbook(ruta)
         ws = wb["Vigentes"]
         assert ws is not None
@@ -272,41 +273,10 @@ class TestGuardarSugerenciasPivot:
         stage._guardar_sugerencias_pivot(analisis)
         archivos = list(tmp_path.glob("sugerencias_pivot_etapa5_*.json"))
         assert len(archivos) == 1
-        with open(archivos[0], encoding="utf-8") as f:
+        with archivos[0].open(encoding="utf-8") as f:
             data = json.load(f)
         assert data["clave"] == "valor"
         assert data["numero"] == 42
-
-
-# ---------------------------------------------------------------------------
-# _encontrar_fila_por_codigo
-# ---------------------------------------------------------------------------
-
-@pytest.mark.unit
-class TestEncontrarFilaPorCodigo:
-
-    def _make_ws(self):
-        wb = Workbook()
-        ws = wb.active  # type: ignore[union-attr]
-        ws.append(["ID", "Codigo", "Nombre"])  # type: ignore[union-attr]
-        ws.append([1, "2025-001", "Alfa"])  # type: ignore[union-attr]
-        ws.append([2, "2025-002", "Beta"])  # type: ignore[union-attr]
-        return ws
-
-    def test_codigo_encontrado(self, stage):
-        ws = self._make_ws()
-        fila = stage._encontrar_fila_por_codigo(ws, "2025-001")
-        assert fila == 2
-
-    def test_codigo_segundo_registro(self, stage):
-        ws = self._make_ws()
-        fila = stage._encontrar_fila_por_codigo(ws, "2025-002")
-        assert fila == 3
-
-    def test_codigo_no_encontrado_retorna_none(self, stage):
-        ws = self._make_ws()
-        fila = stage._encontrar_fila_por_codigo(ws, "9999-XXX")
-        assert fila is None
 
 
 # ---------------------------------------------------------------------------
@@ -317,16 +287,16 @@ class TestEncontrarFilaPorCodigo:
 class TestValidateInputsFallback:
 
     def test_sin_artefacto_sin_fallback_lanza_error(self, config):
-        from etapas.etapa5 import GeneradorReporteIncremental
         from core.context import PipelineContext
+        from etapas.etapa5 import GeneradorReporteIncremental
         stage = GeneradorReporteIncremental()
         ctx = PipelineContext(config=config)
         with pytest.raises(ValueError, match="Falta artefacto"):
             stage.validate_inputs(ctx)
 
     def test_sin_artefacto_con_fallback_y_sin_archivos_lanza_error(self, config, tmp_path, monkeypatch):
-        from etapas.etapa5 import GeneradorReporteIncremental
         from core.context import PipelineContext
+        from etapas.etapa5 import GeneradorReporteIncremental
         stage = GeneradorReporteIncremental()
         ctx = PipelineContext(config=config, flags={'allow_fallback': True})
         # Redirigir PRESENTACION_ORIGINAL_DIR a directorio vacío
@@ -336,8 +306,8 @@ class TestValidateInputsFallback:
             stage.validate_inputs(ctx)
 
     def test_archivo_entrada_no_existe_lanza_error(self, config, tmp_path):
-        from etapas.etapa5 import GeneradorReporteIncremental
         from core.context import PipelineContext
+        from etapas.etapa5 import GeneradorReporteIncremental
         stage = GeneradorReporteIncremental()
         ruta_fantasma = tmp_path / "noexiste.xlsx"
         ctx = PipelineContext(config=config)
@@ -354,8 +324,8 @@ class TestValidateInputsFallback:
 class TestRun:
 
     def test_run_exito_con_artefacto(self, config, tmp_path, df_minimo, monkeypatch):
-        from etapas.etapa5 import GeneradorReporteIncremental
         from core.context import PipelineContext
+        from etapas.etapa5 import GeneradorReporteIncremental
         stage = GeneradorReporteIncremental()
         stage._logger = MagicMock()
         stage._logger.finalize = MagicMock()
@@ -383,8 +353,8 @@ class TestRun:
         assert result.stage_name == "incremental"
 
     def test_run_exito_sin_reporte_anterior_crea_inicial(self, config, tmp_path, df_minimo, monkeypatch):
-        from etapas.etapa5 import GeneradorReporteIncremental
         from core.context import PipelineContext
+        from etapas.etapa5 import GeneradorReporteIncremental
         stage = GeneradorReporteIncremental()
         stage._logger = MagicMock()
         stage._logger.finalize = MagicMock()
@@ -414,8 +384,8 @@ class TestRun:
         assert len(archivos) == 1
 
     def test_run_error_retorna_failure(self, config, tmp_path):
-        from etapas.etapa5 import GeneradorReporteIncremental
         from core.context import PipelineContext
+        from etapas.etapa5 import GeneradorReporteIncremental
         stage = GeneradorReporteIncremental()
         stage._logger = MagicMock()
         stage._logger.finalize = MagicMock()

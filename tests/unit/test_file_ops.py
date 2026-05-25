@@ -10,23 +10,22 @@ import os
 import time
 from pathlib import Path
 from unittest.mock import MagicMock, patch
-import pandas as pd
-import pytest
+
 import openpyxl
+import pandas as pd
 
 from utils.file_ops import (
-    validar_archivo_excel,
     crear_backup,
-    encontrar_fila_encabezado,
     encontrar_columna,
-    leer_excel_con_header_dinamico,
+    encontrar_fila_encabezado,
     guardar_excel_con_formato,
-    obtener_timestamp,
-    obtener_fecha_hoy,
-    listar_archivos_output,
+    leer_excel_con_header_dinamico,
     limpiar_outputs_antiguos,
+    listar_archivos_output,
+    obtener_fecha_hoy,
+    obtener_timestamp,
+    validar_archivo_excel,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -90,7 +89,7 @@ class TestValidarArchivoExcel:
     def test_hoja_existente_pasa(self, tmp_path):
         ruta = tmp_path / "datos.xlsx"
         _excel_simple(ruta, sheet="MiHoja")
-        valido, msg = validar_archivo_excel(ruta, hojas_requeridas=["MiHoja"])
+        valido, _msg = validar_archivo_excel(ruta, hojas_requeridas=["MiHoja"])
         assert valido
 
     def test_hoja_faltante_falla(self, tmp_path):
@@ -356,8 +355,8 @@ class TestTimestamps:
 
 class TestListarArchivosOutput:
     def test_directorio_no_existe_retorna_vacio(self):
-        with patch("utils.config.Config") as mock_cfg:
-            mock_cfg.OUTPUT_DIR = Path("/ruta/que/no/existe/jamas")
+        with patch("utils.config.Config") as mock_cls:
+            mock_cls.return_value.OUTPUT_DIR = Path("/ruta/que/no/existe/jamas")
             result = listar_archivos_output()
         assert result == []
 
@@ -365,8 +364,8 @@ class TestListarArchivosOutput:
         (tmp_path / "a.xlsx").touch()
         (tmp_path / "b.xlsx").touch()
         (tmp_path / "c.txt").touch()
-        with patch("utils.config.Config") as mock_cfg:
-            mock_cfg.OUTPUT_DIR = tmp_path
+        with patch("utils.config.Config") as mock_cls:
+            mock_cls.return_value.OUTPUT_DIR = tmp_path
             result = listar_archivos_output("*.xlsx")
         assert len(result) == 2
         assert all(p.suffix == ".xlsx" for p in result)
@@ -374,8 +373,8 @@ class TestListarArchivosOutput:
     def test_patron_personalizado(self, tmp_path):
         (tmp_path / "log.txt").touch()
         (tmp_path / "data.xlsx").touch()
-        with patch("utils.config.Config") as mock_cfg:
-            mock_cfg.OUTPUT_DIR = tmp_path
+        with patch("utils.config.Config") as mock_cls:
+            mock_cls.return_value.OUTPUT_DIR = tmp_path
             result = listar_archivos_output("*.txt")
         assert len(result) == 1
         assert result[0].name == "log.txt"
@@ -390,36 +389,31 @@ class TestLimpiarOutputsAntiguos:
         archivos = [tmp_path / f"f{i}.xlsx" for i in range(3)]
         for a in archivos:
             a.touch()
-        with patch("utils.config.Config") as mock_cfg:
-            mock_cfg.OUTPUT_DIR = tmp_path
+        with patch("utils.config.Config") as mock_cls:
+            mock_cls.return_value.OUTPUT_DIR = tmp_path
             limpiar_outputs_antiguos(dias=1, mantener_ultimos=5)
         # Todos deben seguir existiendo
         assert all(a.exists() for a in archivos)
 
     def test_elimina_archivos_antiguos(self, tmp_path):
-        # Crear 7 archivos, los últimos 2 serán "antiguos" en tiempo de mtime
         archivos = []
         for i in range(7):
             a = tmp_path / f"f{i:02d}.xlsx"
             a.touch()
             archivos.append(a)
 
-        # Hacer que los archivos más antiguos (índices 5 y 6 al ordenar desc) tengan mtime muy viejo
-        # listar_archivos_output ordena reverse=True (más recientes primero por nombre)
-        # Los índices 5+ son los más "viejos" según orden de nombre
         hace_60_dias = time.time() - (60 * 24 * 60 * 60)
         os.utime(archivos[0], (hace_60_dias, hace_60_dias))
         os.utime(archivos[1], (hace_60_dias, hace_60_dias))
 
-        with patch("utils.config.Config") as mock_cfg:
-            mock_cfg.OUTPUT_DIR = tmp_path
+        with patch("utils.config.Config") as mock_cls:
+            mock_cls.return_value.OUTPUT_DIR = tmp_path
             limpiar_outputs_antiguos(dias=30, mantener_ultimos=5)
 
-        # Los 5 más recientes (por orden de nombre desc) se mantienen
         remaining = list(tmp_path.glob("*.xlsx"))
         assert len(remaining) >= 5
 
     def test_no_falla_si_directorio_vacio(self, tmp_path):
-        with patch("utils.config.Config") as mock_cfg:
-            mock_cfg.OUTPUT_DIR = tmp_path
+        with patch("utils.config.Config") as mock_cls:
+            mock_cls.return_value.OUTPUT_DIR = tmp_path
             limpiar_outputs_antiguos()  # no debe lanzar excepción

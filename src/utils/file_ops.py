@@ -1,16 +1,13 @@
-"""
-Utilidades para operaciones con archivos Excel y gestión de rutas.
-
-Autor: Sebastian Chirino
-Versión: 3.0.0
-"""
+"""Utilidades para leer, escribir y validar archivos Excel."""
 
 import shutil
-from pathlib import Path
 from datetime import datetime
-from typing import Optional, List
+from pathlib import Path
+
 import pandas as pd
 from openpyxl import load_workbook
+from openpyxl.styles import Alignment, Font, PatternFill
+
 from .logger import ProjectLogger
 from .text_processing import normalizar_texto
 
@@ -18,19 +15,9 @@ from .text_processing import normalizar_texto
 def validar_archivo_excel(
     ruta: Path,
     debe_existir: bool = True,
-    hojas_requeridas: Optional[List[str]] = None
+    hojas_requeridas: list[str] | None = None
 ) -> tuple[bool, str]:
-    """
-    Valida que un archivo Excel exista y tenga las hojas requeridas.
-    
-    Args:
-        ruta: Ruta al archivo Excel
-        debe_existir: Si True, el archivo debe existir
-        hojas_requeridas: Lista de nombres de hojas que deben existir
-    
-    Returns:
-        tuple: (es_valido, mensaje)
-    """
+    """Valida existencia y hojas de un Excel. Devuelve (ok, mensaje)."""
     # Verificar existencia
     if debe_existir and not ruta.exists():
         return False, f"Archivo no encontrado: {ruta}"
@@ -46,10 +33,11 @@ def validar_archivo_excel(
     if hojas_requeridas:
         try:
             wb = load_workbook(ruta, read_only=True)
-            hojas_existentes = wb.sheetnames
-            wb.close()
-            
-            hojas_faltantes = [h for h in hojas_requeridas if h not in hojas_existentes]
+            try:
+                hojas_existentes = wb.sheetnames
+                hojas_faltantes = [h for h in hojas_requeridas if h not in hojas_existentes]
+            finally:
+                wb.close()
             if hojas_faltantes:
                 return False, f"Hojas faltantes: {hojas_faltantes}"
         
@@ -61,20 +49,10 @@ def validar_archivo_excel(
 
 def crear_backup(
     archivo: Path,
-    directorio_backup: Optional[Path] = None,
-    logger: Optional[ProjectLogger] = None
-) -> Optional[Path]:
-    """
-    Crea una copia de backup de un archivo.
-    
-    Args:
-        archivo: Archivo a respaldar
-        directorio_backup: Directorio donde guardar backup (mismo dir si None)
-        logger: Logger para registrar operación
-    
-    Returns:
-        Path: Ruta del backup creado, None si hubo error
-    """
+    directorio_backup: Path | None = None,
+    logger: ProjectLogger | None = None
+) -> Path | None:
+    """Crea una copia con timestamp. Devuelve la ruta del backup o None si falla."""
     if not archivo.exists():
         if logger:
             logger.warning(f"No se puede hacer backup, archivo no existe: {archivo}")
@@ -108,27 +86,16 @@ def crear_backup(
 
 def encontrar_fila_encabezado(
     ruta: Path,
-    hoja: Optional[str] = None,
+    hoja: str | None = None,
     columna_referencia: str = "Nivel 1",
     max_filas: int = 50
 ) -> int:
-    """
-    Encuentra la fila donde están los encabezados en un archivo Excel.
-    
-    Args:
-        ruta: Ruta al archivo Excel
-        hoja: Nombre de la hoja (primera si None)
-        columna_referencia: Columna a buscar para identificar header
-        max_filas: Máximo de filas a revisar
-    
-    Returns:
-        int: Número de fila (0-indexed) donde están los encabezados
-    """
+    """Detecta la fila de encabezados buscando columna_referencia. Devuelve índice 0-based."""
     try:
         df = pd.read_excel(ruta, sheet_name=hoja, nrows=max_filas, header=None)
         
         if isinstance(df, dict):
-            df = df[hoja or list(df.keys())[0]]
+            df = df[hoja or next(iter(df.keys()))]
         
         target = normalizar_texto(columna_referencia)
         
@@ -156,21 +123,8 @@ def encontrar_columna(
     df: pd.DataFrame,
     nombre_columna: str,
     normalizar: bool = True
-) -> Optional[str]:
-    """
-    Encuentra una columna en un DataFrame por nombre (con normalización).
-    
-    Args:
-        df: DataFrame donde buscar
-        nombre_columna: Nombre de la columna a buscar
-        normalizar: Si True, busca con normalización de texto
-    
-    Returns:
-        str: Nombre real de la columna encontrada, None si no existe
-    
-    Examples:
-        >>> encontrar_columna(df, "Nivel 1")  # Encuentra "Nivel 1", "nivel 1", "NIVEL1"
-    """
+) -> str | None:
+    """Busca una columna en el DataFrame (con normalización opcional). Devuelve el nombre real o None."""
     if nombre_columna in df.columns:
         return nombre_columna
     
@@ -188,28 +142,16 @@ def encontrar_columna(
 
 def leer_excel_con_header_dinamico(
     ruta: Path,
-    hoja: Optional[str] = None,
+    hoja: str | None = None,
     columna_referencia: str = "Nivel 1",
     **kwargs
 ) -> pd.DataFrame:
-    """
-    Lee un archivo Excel detectando automáticamente la fila de encabezados.
-    
-    Args:
-        ruta: Ruta al archivo Excel
-        hoja: Nombre de la hoja (primera si None)
-        columna_referencia: Columna para detectar header
-        **kwargs: Argumentos adicionales para pd.read_excel
-    
-    Returns:
-        pd.DataFrame
-    """
+    """Lee un Excel detectando automáticamente la fila de encabezados."""
     header_row = encontrar_fila_encabezado(ruta, hoja, columna_referencia)
     
     # Si no se especifica hoja, usar la primera hoja
     if hoja is None:
-        import openpyxl
-        wb = openpyxl.load_workbook(ruta, read_only=True, data_only=True)
+        wb = load_workbook(ruta, read_only=True, data_only=True)
         hoja = wb.sheetnames[0]
         wb.close()
     
@@ -228,19 +170,7 @@ def guardar_excel_con_formato(
     autoajustar_columnas: bool = True,
     congelar_encabezado: bool = True
 ) -> bool:
-    """
-    Guarda un DataFrame a Excel con formato profesional.
-    
-    Args:
-        df: DataFrame a guardar
-        ruta: Ruta de destino
-        nombre_hoja: Nombre de la hoja
-        autoajustar_columnas: Si True, ajusta ancho de columnas
-        congelar_encabezado: Si True, congela la primera fila
-    
-    Returns:
-        bool: True si se guardó correctamente
-    """
+    """Guarda un DataFrame en Excel con encabezado azul, columnas ajustadas y fila congelada."""
     try:
         # Guardar DataFrame
         with pd.ExcelWriter(ruta, engine='openpyxl') as writer:
@@ -264,15 +194,13 @@ def guardar_excel_con_formato(
                     try:
                         if cell.value:
                             max_length = max(max_length, len(str(cell.value)))
-                    except Exception:
+                    except Exception:  # noqa: S110 — cell formatting error, skip silently
                         pass
                 
                 adjusted_width = min(max_length + 2, 50)  # Máximo 50
                 ws.column_dimensions[column_letter].width = adjusted_width
         
         # Formato de encabezado
-        from openpyxl.styles import Font, PatternFill, Alignment
-        
         header_fill = PatternFill(start_color="366092", end_color="366092", fill_type="solid")
         header_font = Font(bold=True, color="FFFFFF")
         header_alignment = Alignment(horizontal="center", vertical="center")
@@ -299,33 +227,19 @@ def obtener_fecha_hoy() -> str:
     return datetime.now().strftime("%Y%m%d")
 
 
-def listar_archivos_output(patron: str = "*.xlsx") -> List[Path]:
-    """
-    Lista archivos en el directorio OUTPUT.
-    
-    Args:
-        patron: Patrón glob para filtrar archivos
-    
-    Returns:
-        List[Path]: Lista de rutas encontradas
-    """
+def listar_archivos_output(patron: str = "*.xlsx") -> list[Path]:
+    """Lista archivos en OUTPUT_DIR ordenados de más reciente a más antiguo."""
     from .config import Config
     
-    if not Config.OUTPUT_DIR.exists():
+    config = Config()
+    if not config.OUTPUT_DIR.exists():
         return []
     
-    return sorted(Config.OUTPUT_DIR.glob(patron), reverse=True)
+    return sorted(config.OUTPUT_DIR.glob(patron), reverse=True)
 
 
-def limpiar_outputs_antiguos(dias: int = 30, mantener_ultimos: int = 5):
-    """
-    Limpia archivos OUTPUT antiguos.
-    
-    Args:
-        dias: Eliminar archivos más antiguos que N días
-        mantener_ultimos: Mantener al menos N archivos más recientes
-    """
-    
+def limpiar_outputs_antiguos(dias: int = 30, mantener_ultimos: int = 5) -> None:
+    """Elimina archivos de OUTPUT más antiguos que 'dias' días, conservando los 'mantener_ultimos' más recientes."""
     archivos = listar_archivos_output()
     
     if len(archivos) <= mantener_ultimos:
@@ -335,7 +249,6 @@ def limpiar_outputs_antiguos(dias: int = 30, mantener_ultimos: int = 5):
     
     for archivo in archivos[mantener_ultimos:]:
         if archivo.stat().st_mtime < fecha_limite:
-            try:
+            import contextlib
+            with contextlib.suppress(Exception):
                 archivo.unlink()
-            except Exception:
-                pass

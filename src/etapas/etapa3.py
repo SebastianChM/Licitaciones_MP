@@ -1,39 +1,45 @@
-"""
-ETAPA 3 - Enriquecimiento vía API de Mercado Público
-Versión: 3.0.0
-"""
+"""Etapa 3 — enriquecimiento de licitaciones filtradas mediante la API de Mercado Público."""
+from importlib.metadata import version as _pkg_version
 
-__version__ = "3.0.0"
+__version__ = _pkg_version("licitaciones-mp")
 
-import time
-import pandas as pd
-from pathlib import Path
-from datetime import datetime
-import json
 import hashlib
+import json
+import time
+from datetime import datetime
+from pathlib import Path
+
+import pandas as pd
+import requests
+
+from core.context import PipelineContext
+from core.contracts import BaseStage, StageResult
 from utils import Config, guardar_excel_con_formato, obtener_timestamp
 from utils.http import HTTPClient
-from core.contracts import BaseStage, StageResult
-from core.context import PipelineContext
+from utils.logger import configurar_consola_utf8
 
 
 class EnriquecedorAPI(BaseStage):
     """Enriquecedor de licitaciones mediante API de Mercado Público"""
-    
-    def __init__(self):
+
+    # Circuit breaker: auto-recuperación frente a fallos consecutivos de red con la API de MP
+    _CB_UMBRAL = 5   # fallos de red seguidos antes de activar la pausa
+    _CB_PAUSA  = 60  # segundos de espera para que el servidor se recupere
+
+    def __init__(self) -> None:
         super().__init__()
         self.estadisticas = {
             'total_registros': 0,
             'enriquecidos_ok': 0,
-            'omitidos': 0,
             'errores_registro': 0,
             'errores_fatales_etapa': 0,
             'tiempo_inicio': datetime.now(),
             'llamadas_api': 0,
-            'errores_http_500': 0
+            'errores_http_500': 0,
+            'cache_hits': 0,
         }
         self.cache = {}
-        self.http = None
+        self.http: HTTPClient | None = None
 
     @property
     def name(self) -> str:
@@ -68,8 +74,7 @@ class EnriquecedorAPI(BaseStage):
             self.logger.warning(f"[!] No se pudo cargar API Key del PIVOT: {e}")
             return ""
     
-    def run(self, context: PipelineContext) -> StageResult:
-        self.bind(context)
+    def _execute(self, context: PipelineContext) -> StageResult:
         self.logger.section("ETAPA 3 - ENRIQUECIMIENTO VÍA API", 80)
         self.logger.info(f"🚀 Iniciando enriquecimiento - Versión {__version__} | RunID: {context.run_id}")
         self.logger.info(f"📅 Fecha: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
@@ -85,8 +90,7 @@ class EnriquecedorAPI(BaseStage):
                                    timeout=self.timeout,
                                    backoff_factor=1.5)
             self.api_key = self._cargar_api_key()
-            
-            self.validate_inputs(context)
+
             archivo_entrada = context.get_artifact('etapa2_output') or self._obtener_archivo_fallback(context)
 
             # ── Health check: verificar que la API responde ANTES de procesar N registros ──
@@ -108,8 +112,11 @@ class EnriquecedorAPI(BaseStage):
                 raise ValueError("La etapa no generó ningún artefacto de salida. Proceso abortado.")
             
             context.add_artifact('etapa3_output', rutas_generadas[0])
-            
+
+            # Calcular tiempo aquí para que el resumen lo muestre correctamente.
+            # El bloque finally lo recalcula igualmente para garantizar presencia en errores.
             self.estadisticas['tiempo_total'] = str(datetime.now() - self.estadisticas['tiempo_inicio'])
+
             self.logger.section("RESUMEN DE ENRIQUECIMIENTO", 80)
             self._imprimir_resumen()
             
@@ -131,9 +138,13 @@ class EnriquecedorAPI(BaseStage):
             self.logger.error(f"❌ Error crítico en etapa 3: {e}", exc_info=True)
             return StageResult(success=False, stage_name=self.name, error_message=str(e), metrics_produced=self.estadisticas)
         finally:
-            if hasattr(self, 'http') and self.http:
-                self.http.close()
-            self.logger.finalize()
+            # tiempo_total siempre presente, incluso en fallos: crítico para observabilidad.
+            self.estadisticas['tiempo_total'] = str(datetime.now() - self.estadisticas['tiempo_inicio'])
+
+    def _cleanup(self) -> None:
+        """Cierra el cliente HTTP al finalizar la etapa."""
+        if hasattr(self, 'http') and self.http:
+            self.http.close()
     
     def _obtener_archivo_fallback(self, context: PipelineContext) -> Path:
         archivos = list(context.config.FILTRADO_DIR.glob("Licitaciones_Filtradas_*.xlsx"))
@@ -154,7 +165,8 @@ class EnriquecedorAPI(BaseStage):
         return df
     
     def _get_dataset_hash(self, df: pd.DataFrame, col_codigo: str) -> str:
-        concatenado = "".join(df[col_codigo].astype(str).tolist())
+        # Separador NUL: garantiza que ['ab','cd'] y ['a','bcd'] generen hashes distintos.
+        concatenado = "\x00".join(df[col_codigo].astype(str).tolist())
         return hashlib.sha256(concatenado.encode('utf-8')).hexdigest()
 
     def _limpiar_checkpoints_antiguos(self, checkpoint_dir: Path) -> None:
@@ -175,12 +187,14 @@ class EnriquecedorAPI(BaseStage):
 
     def _health_check_api(self) -> bool:
         """Hace UNA llamada rápida para saber si la API está respondiendo."""
+        if self.http is None:
+            return False
         url = f"{self.api_base_url}/licitaciones.json"
         params = {"ticket": self.api_key, "estado": "publicada"}
         self.logger.info("[>>] Verificando disponibilidad de la API de Mercado Público...")
         try:
             resp = self.http.session.get(url, params=params, timeout=15)
-            if resp.status_code == 200:
+            if resp.status_code < 300:
                 self.logger.info("[OK] API de Mercado Público disponible.")
                 return True
             self.logger.warning(f"⚠️ API respondió con HTTP {resp.status_code} — puede estar degradada.")
@@ -193,6 +207,8 @@ class EnriquecedorAPI(BaseStage):
         self.logger.subsection("Enriqueciendo licitaciones vía API")
         
         col_codigo = next((c for c in ["Numero Adquisición", "Código", "Codigo", "CodigoExterno"] if c in df.columns), None)
+        if col_codigo is None:
+            raise ValueError("No se encontró columna con código de licitación en el DataFrame")
         total = len(df)
         dataset_hash = self._get_dataset_hash(df, col_codigo)
         
@@ -205,7 +221,7 @@ class EnriquecedorAPI(BaseStage):
         if checkpoint_file.exists():
             self.logger.info(f"[ℹ️] Archivo de checkpoint encontrado: {checkpoint_file.name}")
             try:
-                with open(checkpoint_file, 'r', encoding='utf-8') as f:
+                with checkpoint_file.open(encoding='utf-8') as f:
                     for line in f:
                         if not line.strip():
                             continue
@@ -222,7 +238,19 @@ class EnriquecedorAPI(BaseStage):
             except Exception as e:
                 self.logger.warning(f"[!] Checkpoint corrupto o inaccesible, se ignorará: {e}")
                 resultados_cache = {}
-                
+
+        # Reportar cuántas licitaciones realmente requerirán llamada a la API
+        # (intersección exacta con el DataFrame, no solo tamaño del cache)
+        codigos_df = {str(row[col_codigo]) for _, row in df.iterrows()}
+        cache_aplicable = len(codigos_df & set(resultados_cache.keys()))
+        pendientes_api = total - cache_aplicable
+        if resultados_cache:
+            tiempo_est_s = pendientes_api * self.delay_segundos
+            self.logger.info(
+                f"[>>] {cache_aplicable}/{total} desde cache | "
+                f"{pendientes_api} pendientes via API (~{tiempo_est_s:.0f}s sin retries)."
+            )
+
         # Si la API está caída, marcar todo directamente sin llamadas HTTP
         if not api_disponible:
             self.logger.info("[>>] API no disponible — generando resultado sin datos adicionales para todas las licitaciones.")
@@ -234,25 +262,28 @@ class EnriquecedorAPI(BaseStage):
         resultados = []
         okcount = 0
         failcount = 0
+        cache_count = 0
+        api_count = 0
         # Circuit breaker: si N fallos consecutivos, pausar para dejar recuperar la API
-        _CB_UMBRAL = 5       # fallos seguidos antes de activar
-        _CB_PAUSA  = 60      # segundos de espera cuando se activa
         fallos_consecutivos = 0
 
-        with open(checkpoint_file, 'a', encoding='utf-8') as cp_file:
-            for idx, row in df.iterrows():
-                mostrar_progreso = (idx + 1) % 10 == 0 or idx == 0 or idx == total - 1
+        with checkpoint_file.open('a', encoding='utf-8') as cp_file:
+            for i, (_idx, row) in enumerate(df.iterrows()):
+                mostrar_progreso = (i + 1) % 10 == 0 or i == 0 or i == total - 1
                 if mostrar_progreso:
                     self.logger.progress(
-                        idx + 1, total,
-                        prefix=f"Enriqueciendo [✓ {okcount} datos | ⚠ {failcount} sin respuesta]"
+                        i + 1, total,
+                        prefix=f"Enriqueciendo [✓ {okcount} (cache {cache_count} + API {api_count}) | ⚠ {failcount}]"
                     )
                 
                 codigo = str(row[col_codigo])
                 if codigo in resultados_cache:
                     datos_api = resultados_cache[codigo]
+                    self.estadisticas['cache_hits'] += 1
+                    cache_count += 1
                 else:
                     datos_api = self._consultar_api(codigo)
+                    api_count += 1
                     
                     status = 'api_disponible_false' if not datos_api.get('_api_disponible', True) else 'success'
                     record_to_save = {
@@ -284,21 +315,29 @@ class EnriquecedorAPI(BaseStage):
                             f"(fallo de red, el proceso continúa)"
                         )
                         # Circuit breaker: N fallos de red seguidos → pausar
-                        if fallos_consecutivos >= _CB_UMBRAL:
+                        if fallos_consecutivos >= self._CB_UMBRAL:
                             self.logger.warning(
                                 f"⏸ {fallos_consecutivos} fallos de red consecutivos. "
-                                f"Pausando {_CB_PAUSA}s para que el servidor se recupere..."
+                                f"Pausando {self._CB_PAUSA}s para que el servidor se recupere..."
                             )
-                            time.sleep(_CB_PAUSA)
-                            self.http._renovar_sesion()
+                            time.sleep(self._CB_PAUSA)
+                            if self.http is not None:
+                                self.http.renovar_sesion()
                             fallos_consecutivos = 0
                     else:
                         # Listado vacío: licitación no indexada en la API — es normal
                         fallos_consecutivos = 0
 
         try:
-            if checkpoint_file.exists():
-                checkpoint_file.unlink()
+            # Solo eliminar el checkpoint si no hubo errores (preservar para reanudar en fallo parcial)
+            if self.estadisticas['errores_registro'] == 0:
+                if checkpoint_file.exists():
+                    checkpoint_file.unlink()
+            else:
+                self.logger.info(
+                    f"[!] Checkpoint preservado ({self.estadisticas['errores_registro']} errores). "
+                    "La próxima ejecución reanudará desde este punto."
+                )
         except OSError:
             pass
 
@@ -313,6 +352,8 @@ class EnriquecedorAPI(BaseStage):
     def _consultar_api(self, codigo: str) -> dict:
         if codigo in self.cache:
             return self.cache[codigo]
+        if self.http is None:
+            return {'_api_error': 'HTTPClient no inicializado', '_api_disponible': False, '_fallo_red': True}
         
         url = f"{self.api_base_url}/licitaciones.json"
         params = {'codigo': codigo}
@@ -323,21 +364,36 @@ class EnriquecedorAPI(BaseStage):
             self.estadisticas['llamadas_api'] += 1
             response = self.http.get(url, params=params)
 
-            data = response.json()
-            if 'Listado' in data and data['Listado']:
+            try:
+                data = response.json()
+            except (ValueError, json.JSONDecodeError) as e:
+                # Respuesta no-JSON: NO es fallo de red (no debe disparar circuit breaker)
+                resultado = {'_api_error': f'Respuesta no-JSON: {e}',
+                             '_api_disponible': False, '_fallo_red': False}
+                self.cache[codigo] = resultado
+                return resultado
+
+            if isinstance(data, dict) and data.get('Listado'):
                 datos_procesados = self._procesar_respuesta_api(data['Listado'][0])
                 self.cache[codigo] = datos_procesados
                 return datos_procesados
-            # HTTP 200 pero sin datos — licitación no indexada en la API (normal, no es fallo de red)
-            return {'_api_error': 'Listado vacío', '_api_disponible': False, '_fallo_red': False}
+            # HTTP 200 pero sin datos (o estructura inesperada) — licitación no
+            # indexada en la API. Cacheamos para no repetir la llamada si la misma
+            # licitación aparece duplicada en el dataset.
+            resultado = {'_api_error': 'Listado vacío', '_api_disponible': False, '_fallo_red': False}
+            self.cache[codigo] = resultado
+            return resultado
 
-        except Exception as e:
-            # Fallo real de red/servidor — éstos sí deben activar el circuit breaker
-            if hasattr(e, 'response') and e.response is not None:
+        except requests.HTTPError as e:
+            # Fallo HTTP con respuesta del servidor (4xx/5xx)
+            if e.response is not None:
                 if e.response.status_code >= 500:
                     self.estadisticas['errores_http_500'] += 1
                 return {'_api_error': f'HTTP Error {e.response.status_code}',
                         '_api_disponible': False, '_fallo_red': True}
+            return {'_api_error': str(e), '_api_disponible': False, '_fallo_red': True}
+        except Exception as e:
+            # Fallo de red sin respuesta HTTP (timeout, connection error, etc.)
             return {'_api_error': str(e), '_api_disponible': False, '_fallo_red': True}
     
     def _procesar_respuesta_api(self, datos_raw: dict) -> dict:
@@ -373,7 +429,24 @@ class EnriquecedorAPI(BaseStage):
         
         # Items y Adjuntos
         items = datos_raw.get('Items', {})
-        datos['API_TotalItems'] = len(items.get('Listado', [])) if items else 0
+        listado_items = items.get('Listado', []) if items else []
+        datos['API_TotalItems'] = len(listado_items)
+
+        # Extraer categorías y productos UNSPSC de los ítems
+        categorias = []
+        productos = []
+        for it in listado_items:
+            cat = it.get('Categoria', '')
+            prod = it.get('NombreProducto', '')
+            if cat:
+                categorias.append(cat)
+            if prod:
+                productos.append(prod)
+        datos['API_ItemsCategorias'] = ' | '.join(categorias) if categorias else ''
+        datos['API_ItemsProductos'] = ' | '.join(productos) if productos else ''
+
+        # Flag de obra (0=No, 2=Sí) — útil para distinguir consultoría de ejecución
+        datos['API_EsObra'] = datos_raw.get('Obras', 0)
         
         adjuntos = datos_raw.get('Adjuntos', {})
         datos['API_TotalAdjuntos'] = len(adjuntos.get('Listado', [])) if adjuntos else 0
@@ -392,11 +465,16 @@ class EnriquecedorAPI(BaseStage):
             return [ruta_enriquecidas]
         return []
     
-    def _imprimir_resumen(self):
+    def _imprimir_resumen(self) -> None:
         stats = self.estadisticas
         porcentaje = (stats['enriquecidos_ok'] / stats['total_registros'] * 100) if stats['total_registros'] > 0 else 0
         errores_500 = stats.get('errores_http_500', 0)
-        
+        cache_hits = stats.get('cache_hits', 0)
+        # Rate-limit teórico derivado del delay configurado (NO hardcodeado).
+        # delay=0 implicaría rate ilimitado; lo evitamos para no dividir por cero.
+        delay = max(self.delay_segundos, 1e-6)
+        rate_teorico = 1.0 / delay
+
         self.logger.info(f"""
 +==============================================================+
 |           ESTADISTICAS DE ENRIQUECIMIENTO                    |
@@ -407,11 +485,12 @@ class EnriquecedorAPI(BaseStage):
    - Exitosas:              {stats['enriquecidos_ok']:,}
    - Errores recuperables:  {stats['errores_registro']:,}
    - Errores fatales:       {stats['errores_fatales_etapa']:,}
+   - Reusados de checkpoint:{cache_hits:,}
 
 [API] API:
    - Llamadas totales:      {stats.get('llamadas_api', 0):,}
    - Errores HTTP 500:      {errores_500:,} (servidor MP inestable)
-   - Rate limit:            2 req/segundo
+   - Rate limit configurado:{rate_teorico:.2f} req/s (delay={self.delay_segundos:g}s)
 
 [+] Resultados:
    - % Éxito:               {porcentaje:.1f}%
@@ -419,7 +498,9 @@ class EnriquecedorAPI(BaseStage):
 """)
 
 
-def main():
+def main() -> int | None:
+    # Forzar UTF-8 en stdout/stderr en Windows ANTES de cualquier emoji/log.
+    configurar_consola_utf8()
     try:
         context = PipelineContext(config=Config())
         context.flags['allow_fallback'] = True

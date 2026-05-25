@@ -1,34 +1,34 @@
-"""
-ETAPA 0 - DESCARGA AUTOMÁTICA DE LICITACIONES
-Descarga el archivo más reciente desde Mercado Público
-
-Autor: Sebastian Chirino
-Versión: 3.0.0
-"""
+"""Etapa 0 — descarga automática del archivo de licitaciones desde Mercado Público."""
 
 import shutil
+import zipfile
+from datetime import datetime, timedelta
+from importlib.metadata import version as _pkg_version
 from pathlib import Path
-from datetime import datetime
 
+import openpyxl
+
+from core.context import PipelineContext
+from core.contracts import BaseStage, StageResult
 from utils.config import Config
 from utils.http import HTTPClient
-from core.contracts import BaseStage, StageResult
-from core.context import PipelineContext
 
-__version__ = "3.0.0"
+__version__ = _pkg_version("licitaciones-mp")
 
 class Etapa0Descarga(BaseStage):
-    """Descarga automática del archivo de licitaciones desde Mercado Público"""
+    """Descarga automática del archivo de licitaciones desde Mercado Público.
+
+    La URL de descarga se obtiene de `Config.mp_download_url` (override con
+    LICIT_MP_DOWNLOAD_URL) y se expone vía la propiedad `URL_DESCARGA` para
+    mantener compatibilidad con código y logs existentes.
+    """
+
+    @property
+    def URL_DESCARGA(self) -> str:
+        return self.config.mp_download_url
     
-    # URL directa de descarga del portal (PUEDE CAMBIAR - verificar en el portal)
-    URL_DESCARGA = "https://www.mercadopublico.cl/Portal/att.ashx?id=5"
-    
-    # URL alternativa: API de Mercado Público
-    API_URL = "https://api.mercadopublico.cl/servicios/v1/publico/licitaciones.json"
-    
-    def __init__(self, usar_api: bool = False):
+    def __init__(self) -> None:
         super().__init__()
-        self.usar_api = usar_api  # Si True, usa API en lugar de descarga directa
         self.stats = {
             'inicio': datetime.now(),
             'archivo_descargado': False,
@@ -44,9 +44,8 @@ class Etapa0Descarga(BaseStage):
     def validate_inputs(self, context: PipelineContext) -> bool:
         return True # Etapa 0 no tiene inputs mandatorios del pipeline
     
-    def run(self, context: PipelineContext) -> StageResult:
+    def _execute(self, context: PipelineContext) -> StageResult:
         """Ejecuta la descarga del archivo de licitaciones"""
-        self.bind(context)
         self.http = HTTPClient(self.logger, timeout=60)
         
         self.logger.section("ETAPA 0 - DESCARGA AUTOMÁTICA", 80)
@@ -99,8 +98,13 @@ class Etapa0Descarga(BaseStage):
                 error_message=str(e),
                 custom_data={'stats': self.stats}
             )
+
+    def _cleanup(self) -> None:
+        """Cierra el cliente HTTP al finalizar la etapa."""
+        if hasattr(self, 'http') and self.http:
+            self.http.close()
     
-    def _validar_conexion(self):
+    def _validar_conexion(self) -> None:
         """Valida la conexión con el servidor de Mercado Público"""
         self.logger.subsection("Validando conexión")
         
@@ -118,8 +122,10 @@ class Etapa0Descarga(BaseStage):
             # Hacer HEAD request con headers de navegador
             response = self.http.head(self.URL_DESCARGA, headers=headers, timeout=10, allow_redirects=True)
             
-            # Aceptar 200 o 302 (redirect)
-            self.logger.info("[OK] Servidor disponible")
+            # Aceptar 200 o 3xx (redirects); 4xx/5xx indican problema real en el portal
+            if response.status_code >= 400:
+                raise ConnectionError(f"Servidor respondió HTTP {response.status_code}. Portal puede estar caído.")
+            self.logger.info(f"[OK] Servidor disponible (HTTP {response.status_code})")
             
             # Obtener tamaño del archivo si está disponible
             if 'Content-Length' in response.headers:
@@ -128,7 +134,7 @@ class Etapa0Descarga(BaseStage):
                 self.logger.info(f"[INFO] Tamaño archivo: {tamano_mb:.2f} MB")
                 
         except Exception as e:
-            raise Exception(f"No se pudo conectar o timeout con Mercado Público. Error: {str(e)}")
+            raise ConnectionError(f"No se pudo conectar o timeout con Mercado Público. Error: {e!s}") from e
     
     def _descargar_archivo(self) -> Path:
         """Descarga el archivo de licitaciones"""
@@ -163,7 +169,7 @@ class Etapa0Descarga(BaseStage):
             downloaded = 0
             chunk_size = 8192
             
-            with open(ruta_temp, 'wb') as f:
+            with ruta_temp.open('wb') as f:
                 for chunk in response.iter_content(chunk_size=chunk_size):
                     if chunk:
                         f.write(chunk)
@@ -184,14 +190,11 @@ class Etapa0Descarga(BaseStage):
         except Exception as e:
             if ruta_temp.exists():
                 ruta_temp.unlink()
-            raise Exception(f"Error al descargar archivo HTTP: {e}")
+            raise ConnectionError(f"Error al descargar archivo HTTP: {e}") from e
     
     def _mover_a_input(self, ruta_origen: Path) -> Path:
         """Mueve el archivo descargado a la carpeta INPUT y gestiona histórico"""
         self.logger.subsection("Moviendo a INPUT")
-        
-        # Verificar si es un ZIP (el portal a veces comprime el Excel)
-        import zipfile
         
         ruta_final_excel = None
         
@@ -199,21 +202,25 @@ class Etapa0Descarga(BaseStage):
             self.logger.info("[INFO] Archivo comprimido detectado, extrayendo...")
             
             with zipfile.ZipFile(ruta_origen, 'r') as zip_ref:
-                # Buscar el archivo Excel dentro del ZIP
                 archivos_excel = [f for f in zip_ref.namelist() if f.endswith(('.xlsx', '.xls'))]
                 
                 if not archivos_excel:
-                    raise Exception("No se encontró archivo Excel en el ZIP descargado")
+                    raise ValueError("No se encontró archivo Excel en el ZIP descargado")
                 
-                # Usar el primer Excel encontrado
                 archivo_excel = archivos_excel[0]
-                self.logger.info(f"[INFO] Extrayendo: {archivo_excel}")
+                # Zip Slip guard: usar solo el nombre base, nunca rutas con directorios intermedios.
+                # Path("../../etc/passwd").name == "passwd" — elimina cualquier path traversal.
+                nombre_seguro = Path(archivo_excel).name
+                if not nombre_seguro:
+                    raise ValueError(f"Nombre de archivo ZIP inseguro o vacío: '{archivo_excel}'")
                 
-                # Extraer a directorio temporal
+                self.logger.info(f"[INFO] Extrayendo: {nombre_seguro}")
+                
+                # Extracción segura: copiar bytes directamente en lugar de zip_ref.extract()
                 temp_dir = ruta_origen.parent
-                zip_ref.extract(archivo_excel, temp_dir)
-                
-                ruta_final_excel = temp_dir / archivo_excel
+                ruta_final_excel = temp_dir / nombre_seguro
+                with zip_ref.open(archivo_excel) as source, ruta_final_excel.open('wb') as target:
+                    shutil.copyfileobj(source, target)
         else:
             ruta_final_excel = ruta_origen
         
@@ -249,16 +256,14 @@ class Etapa0Descarga(BaseStage):
         
         return ruta_destino
     
-    def _limpiar_historico(self, historico_dir: Path, dias_max: int = 30):
+    def _limpiar_historico(self, historico_dir: Path, dias_max: int = 30) -> None:
         """Elimina archivos históricos mayores a N días"""
-        from datetime import timedelta
-        
         fecha_limite = datetime.now() - timedelta(days=dias_max)
         archivos_eliminados = 0
         
         for archivo in historico_dir.glob("Licitacion_*.xlsx"):
             # Obtener fecha de modificación del archivo
-            fecha_archivo = datetime.fromtimestamp(archivo.stat().st_mtime)
+            fecha_archivo = datetime.fromtimestamp(archivo.stat().st_mtime, tz=None)  # noqa: DTZ006 — local filesystem timestamp
             
             if fecha_archivo < fecha_limite:
                 archivo.unlink()
@@ -271,40 +276,42 @@ class Etapa0Descarga(BaseStage):
         total_historicos = len(list(historico_dir.glob("Licitacion_*.xlsx")))
         self.logger.info(f"[HISTORICO] Total archivos mantenidos: {total_historicos}")
     
-    def _validar_archivo(self, ruta: Path):
+    def _validar_archivo(self, ruta: Path) -> None:
         """Valida que el archivo descargado sea correcto"""
         self.logger.subsection("Validando archivo")
-        
+
         try:
-            import openpyxl
-            
-            # Intentar abrir el archivo
+            # openpyxl en modo read_only puede devolver max_row=None en archivos grandes
+            # con el campo <dimension> en el XML de Excel ausente. Usamos pandas que es
+            # más robusto para este tipo de archivos.
+            import pandas as pd
+            df_muestra = pd.read_excel(ruta, nrows=5, engine='openpyxl')
+            # Contar filas reales sin cargar todo el archivo
             wb = openpyxl.load_workbook(ruta, read_only=True, data_only=True)
-            
-            # Obtener la primera hoja
             ws = wb.active
-            
-            # Contar filas aproximadas (sin cargar todo)
-            filas = ws.max_row or 0
-            columnas = ws.max_column or 0
-            
-            self.logger.info("[OK] Archivo válido")
-            self.logger.info(f"[INFO] Filas: ~{filas:,}")
-            self.logger.info(f"[INFO] Columnas: {columnas}")
-            
+            filas = ws.max_row or 0 if ws is not None else 0
+            columnas = len(df_muestra.columns) if df_muestra is not None else 0
             wb.close()
-            
-            # Validaciones mínimas
-            if filas < 100:
-                self.logger.warning(f"[!] Archivo sospechosamente pequeño ({filas} filas)")
-            
-            if columnas < 10:
-                self.logger.warning(f"[!] Pocas columnas ({columnas})")
-                
+
+            # Si openpyxl no pudo contar filas pero pandas sí leyó columnas, el archivo es válido
+            if filas == 0 and columnas > 0:
+                self.logger.info("[OK] Archivo válido")
+                self.logger.info(f"[INFO] Columnas detectadas: {columnas}")
+                return  # Archivo OK aunque max_row no sea confiable
         except Exception as e:
-            raise Exception(f"Archivo descargado no es válido: {e}")
+            raise ValueError(f"Archivo descargado no es válido: {e}") from e
+
+        self.logger.info("[OK] Archivo válido")
+        self.logger.info(f"[INFO] Filas: ~{filas:,}")
+        self.logger.info(f"[INFO] Columnas: {columnas}")
+
+        if filas < 100:
+            self.logger.warning(f"[!] Archivo sospechosamente pequeño ({filas} filas)")
+
+        if columnas < 10:
+            self.logger.warning(f"[!] Pocas columnas ({columnas})")
     
-    def _imprimir_resumen(self):
+    def _imprimir_resumen(self) -> None:
         """Imprime resumen de la descarga"""
         # Contar archivos en histórico
         historico_dir = self.config.INPUT_DIR / "HISTORICO"
@@ -334,10 +341,10 @@ class Etapa0Descarga(BaseStage):
         self.logger.info(resumen)
 
 
-def main():
+def main() -> None:
     """Función principal para ejecutar Etapa 0 de forma independiente"""
-    from core.context import PipelineContext
-    
+    from utils.logger import configurar_consola_utf8
+    configurar_consola_utf8()
     context = PipelineContext(config=Config())
     etapa = Etapa0Descarga()
     resultado = etapa.run(context)
