@@ -4,18 +4,16 @@ Cubre las funciones críticas usadas en filtrado (Etapa 2) y auditoría (Etapa 1
 Ejecutar con: pytest tests/unit/test_text_processing.py -v
 """
 
-import pytest
 from utils.text_processing import (
-    normalizar_texto,
-    limpiar_texto_excel,
     calcular_similitud,
-    encontrar_similares,
     contiene_palabras_clave,
+    encontrar_similares,
     extraer_palabras_clave,
     limpiar_codigo_licitacion,
+    limpiar_texto_excel,
+    normalizar_texto,
     truncar_texto,
 )
-
 
 # ---------------------------------------------------------------------------
 # normalizar_texto
@@ -41,7 +39,6 @@ class TestNormalizarTexto:
         assert normalizar_texto(None) == ""
 
     def test_nan_retorna_vacio(self):
-        import math
         assert normalizar_texto(float("nan")) == ""
 
     def test_string_vacio_retorna_vacio(self):
@@ -211,12 +208,10 @@ class TestExtraerPalabrasClave:
 
 class TestLimpiarCodigoLicitacion:
     def test_remueve_espacios_alrededor_guion(self):
-        from utils.text_processing import limpiar_codigo_licitacion
         resultado = limpiar_codigo_licitacion("1234 - 5678")
         assert " " not in resultado or resultado == "1234-5678"
 
     def test_codigo_limpio_sin_cambios(self):
-        from utils.text_processing import limpiar_codigo_licitacion
         codigo = "1234-5678-LP22"
         assert limpiar_codigo_licitacion(codigo) == codigo
 
@@ -227,14 +222,11 @@ class TestLimpiarCodigoLicitacion:
 
 class TestTruncarTexto:
     def test_texto_corto_sin_truncar(self):
-        from utils.text_processing import truncar_texto
         assert truncar_texto("Hola", 10) == "Hola"
 
     def test_texto_largo_se_trunca(self):
-        from utils.text_processing import truncar_texto
         resultado = truncar_texto("A" * 200, 50)
         assert len(resultado) <= 53  # 50 + posible "..."
 
     def test_none_retorna_vacio(self):
-        from utils.text_processing import truncar_texto
         assert truncar_texto(None, 50) == ""

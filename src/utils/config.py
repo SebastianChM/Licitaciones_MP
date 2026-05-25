@@ -1,14 +1,8 @@
-"""
-Configuración centralizada del proyecto Licitaciones Mercado Público
-Todas las rutas, parámetros y constantes del sistema gestionadas mediante Pydantic Settings.
+"""Configuración centralizada del sistema: rutas, parámetros y secretos vía pydantic-settings."""
 
-Autor: Sebastian Chirino
-Versión: 3.1.0 (Refactorizado)
-"""
-
-from pathlib import Path
-from typing import Optional, Dict
 import logging
+from pathlib import Path
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 BASE_PATH = Path(__file__).parent.parent.parent
@@ -27,7 +21,10 @@ class Config(BaseSettings):
     # ==================== SECRETOS Y VARIABLES DE ENTORNO ====================
     cmf_api_key: str = ""
     mercado_publico_ticket: str = ""
-    fx_provider_url: str = "https://api.exchangerate.host/latest"
+    fx_provider_url: str = "https://api.frankfurter.app/latest"
+    # URL directa de descarga del portal Mercado Público. Override con LICIT_MP_DOWNLOAD_URL.
+    mp_download_url: str = "https://www.mercadopublico.cl/Portal/att.ashx?id=5"
+    cmf_utm_url: str = "https://api.cmfchile.cl/api-sbifv3/recursos_api/utm"
     env: str = "production"
 
     # ==================== RUTAS BASE ====================
@@ -61,20 +58,11 @@ class Config(BaseSettings):
     ETAPA1_MAX_FILAS_BUSQUEDA: int = 50
     
     # ==================== PARÁMETROS ETAPA 2 - FILTRADO ====================
-    ETAPA2_SCORE_BASE: float = 50.0
-    ETAPA2_SCORE_INCLUSION: float = 30.0
-    ETAPA2_SCORE_EXCLUSION: float = -40.0
-    ETAPA2_MIN_SCORE: float = 30.0
-    
-    ETAPA2_MIN_AMOUNT: int = 1_000_000
-    ETAPA2_MAX_AMOUNT: int = 50_000_000_000
-    ETAPA2_MIN_DAYS: int = 7
-    ETAPA2_MAX_DAYS: int = 365
-    
+    # (El filtrado es basado en palabras clave; configuración en PIVOT_MAESTRO hoja 06-FILTROS)
+
     # ==================== PARÁMETROS ETAPA 3 - API ====================
     ETAPA3_API_BASE_URL: str = "https://api.mercadopublico.cl/servicios/v1/publico"
-    ETAPA3_RATE_LIMIT: int = 2
-    ETAPA3_DELAY_SEGUNDOS: float = 1.5
+    ETAPA3_DELAY_SEGUNDOS: float = 7.0  # API pública MP ≈ 8-10 req/min → 7s de margen seguro
     ETAPA3_MAX_REINTENTOS: int = 3
     ETAPA3_TIMEOUT: int = 40
     ETAPA3_CHECKPOINT_RETENTION_DAYS: int = 7
@@ -83,13 +71,7 @@ class Config(BaseSettings):
     ETAPA4_VALOR_UTM: int = 65000
     ETAPA4_VALOR_USD_CLP: int = 900
     ETAPA4_DIAS_GRACIA_HISTORICO: int = 30
-    
-    ETAPA4_COLUMNAS_FINALES: list[str] = [
-        'Código Licitación', 'Nombre', 'Organismo', 'Monto CLP',
-        'Días para Cierre', 'Fecha Cierre', 'Estado', 'Región',
-        'Tipo', 'Categoría', 'Descripción'
-    ]
-    
+
     # ==================== CONFIGURACIÓN GENERAL ====================
     LOG_LEVEL: str = "INFO"
     LOG_FORMAT: str = '%(asctime)s | %(levelname)-8s | %(name)s | %(message)s'
@@ -116,17 +98,8 @@ class Config(BaseSettings):
             return False
         return True
     
-    def cargar_desde_pivot(self, ruta_pivot: Optional[Path] = None) -> Dict[str, str]:
-        """Carga parámetros dinámicos desde la hoja 02-CONFIG del PIVOT_MAESTRO.
-
-        Detecta automáticamente las columnas de nombre y valor buscando cabeceras
-        conocidas en las primeras 10 filas del Excel:
-          - Columna nombre: 'NOMBRE', 'CAMPO', 'CLAVE', 'KEY'
-          - Columna valor:  'PARÁMETRO', 'PARAMETRO', 'VALOR', 'VALUE'
-
-        Esta convención cubre el formato actual del PIVOT_MAESTRO (NOMBRE + PARÁMETRO)
-        y formatos alternativos (Parámetro + Valor).
-        """
+    def cargar_desde_pivot(self, ruta_pivot: Path | None = None) -> dict[str, str]:
+        """Carga parámetros dinámicos de la hoja 02-CONFIG del PIVOT_MAESTRO. Detecta columnas nombre/valor automáticamente."""
         import openpyxl
         ruta = ruta_pivot or self.PIVOT_MAESTRO
 
@@ -140,9 +113,9 @@ class Config(BaseSettings):
                 return {}
             ws = wb['02-CONFIG']
 
-            col_nombre: Optional[int] = None
-            col_valor: Optional[int] = None
-            header_row: Optional[int] = None
+            col_nombre: int | None = None
+            col_valor: int | None = None
+            header_row: int | None = None
 
             for row in ws.iter_rows(max_row=10):
                 for cell in row:
@@ -165,7 +138,7 @@ class Config(BaseSettings):
                 )
                 return {}
 
-            config_dict: Dict[str, str] = {}
+            config_dict: dict[str, str] = {}
             for row in ws.iter_rows(min_row=(header_row or 0) + 1, max_row=100):
                 nombre_cell = next((c for c in row if c.column == col_nombre), None)
                 valor_cell  = next((c for c in row if c.column == col_valor), None)
@@ -195,7 +168,7 @@ class Config(BaseSettings):
 🔐 CMF API KEY: {'✅ Configurada' if self.cmf_api_key else '❌ Faltante'}
 
 🔧 ETAPA 1 - Umbral Alerta: {self.ETAPA1_UMBRAL_ALERTA}
-🔧 ETAPA 2 - Score Mínimo: {self.ETAPA2_MIN_SCORE}
+🔧 ETAPA 2 - Filtrado por palabras clave (configuración en PIVOT_MAESTRO)
 🔧 ETAPA 4 - Valor UTM: ${self.ETAPA4_VALOR_UTM:,}
 
 🧪 Modo TEST: {'✅ Activado' if self.TEST_MODE else '❌ Desactivado'}

@@ -26,11 +26,16 @@ if errorlevel 1 (
 for /f "tokens=*" %%v in ('python --version 2^>^&1') do echo [OK] %%v encontrado
 
 REM --- 2. Crear entorno virtual ------------------------------------
-if exist ".venv\Scripts\activate.bat" (
-    echo [OK] Entorno virtual ya existe, omitiendo creacion.
+REM  El venv se crea en LOCALAPPDATA para que NO se sincronice via OneDrive
+set "VENV_DIR=%LOCALAPPDATA%\MP\Licitaciones_MP\.venv"
+set "VENV_PY=%LOCALAPPDATA%\MP\Licitaciones_MP\.venv\Scripts\python.exe"
+
+if exist "%VENV_PY%" (
+    echo [OK] Entorno virtual ya existe en %VENV_DIR%, omitiendo creacion.
 ) else (
-    echo [1/3] Creando entorno virtual ^(.venv^)...
-    python -m venv .venv
+    echo [1/3] Creando entorno virtual en %VENV_DIR% ...
+    if not exist "%LOCALAPPDATA%\MP\Licitaciones_MP" mkdir "%LOCALAPPDATA%\MP\Licitaciones_MP"
+    python -m venv "%VENV_DIR%"
     if errorlevel 1 (
         echo [ERROR] No se pudo crear el entorno virtual.
         pause
@@ -41,8 +46,8 @@ if exist ".venv\Scripts\activate.bat" (
 
 REM --- 3. Instalar dependencias ------------------------------------
 echo [2/3] Instalando dependencias (puede tardar unos minutos)...
-call ".venv\Scripts\python.exe" -m pip install --upgrade pip --quiet 2>nul
-call ".venv\Scripts\python.exe" -m pip install -r requirements.txt --quiet
+call "%VENV_PY%" -m pip install --upgrade pip --quiet 2>nul
+call "%VENV_PY%" -m pip install -r requirements.txt --quiet
 if errorlevel 1 (
     echo [ERROR] Fallo la instalacion de dependencias.
     echo         Revisa tu conexion a Internet e intenta de nuevo.
@@ -68,10 +73,10 @@ if exist ".env" (
 
 REM --- 5. Crear acceso directo en el escritorio --------------------
 echo Creando acceso directo en el escritorio...
-powershell -ExecutionPolicy Bypass -NonInteractive -WindowStyle Hidden -File "%~dp0crear_acceso_directo.ps1" -Titulo "MP Licitaciones" >nul 2>&1
+powershell -ExecutionPolicy Bypass -NonInteractive -WindowStyle Hidden -File "%~dp0mp_launcher\crear_acceso_directo.ps1" >nul 2>&1
 if errorlevel 1 (
     echo [AVISO] No se pudo crear el acceso directo automaticamente.
-    echo         Puedes ejecutar el sistema con: Lanzador_MP.bat
+    echo         Haz doble clic en MP_Licitaciones.vbs para iniciar el sistema.
 ) else (
     echo [OK] Acceso directo creado en el escritorio.
 )

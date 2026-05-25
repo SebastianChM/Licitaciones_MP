@@ -1,13 +1,14 @@
 # Licitaciones Mercado Público — Sistema MP
 
 ![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13-blue)
-![Tests](https://img.shields.io/badge/tests-545%20passing-brightgreen)
-![Version](https://img.shields.io/badge/versión-Sprint--13-blue)
+![Tests](https://img.shields.io/badge/tests-501%20passing-brightgreen)
+![Version](https://img.shields.io/badge/versión-v5.0.0-blue)
+![Coverage](https://img.shields.io/badge/cobertura-95%25-green)
 
 Sistema automatizado para filtrar y enriquecer licitaciones del Mercado Público de Chile, reduciendo ~12 000 licitaciones publicadas a ~300 relevantes para Sebastian Chirino.
 
-**Versión:** Sprint-13
-**Última actualización:** Marzo 2026
+**Versión:** v5.0.0
+**Última actualización:** Mayo 2026
 **Plataforma:** Windows (con interfaz gráfica visual)
 
 ---

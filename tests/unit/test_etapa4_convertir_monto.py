@@ -6,13 +6,12 @@ sin inicializar el pipeline completo ni hacer I/O.
 Ejecutar con: pytest tests/unit/test_etapa4_convertir_monto.py -v
 """
 
-import pytest
-import pandas as pd
 from datetime import datetime, timedelta
 from unittest.mock import MagicMock
 
-from etapas.etapa4 import GeneradorReporte
+import pandas as pd
 
+from etapas.etapa4 import GeneradorReporte
 
 # ---------------------------------------------------------------------------
 # Helper
@@ -115,6 +114,31 @@ class TestConvertirMontoUSD:
             pd.Series({"Moneda": "USD", "Monto": "500", "Tipo Adquisición": ""})
         )
         assert etapa.stats["usd"] == 1
+
+    def test_usd_monto_nan_retorna_cero_sin_error(self):
+        # Regresión: pd.NaN es truthy → `NaN or '0'` devuelve NaN → float('') → ValueError
+        etapa = _reporte()
+        result = etapa._convertir_monto(
+            pd.Series({"Moneda": "USD", "Monto": float("nan"), "Tipo Adquisición": ""})
+        )
+        assert result == 0
+        assert etapa.stats["errores"] == 0  # NaN vacío no es un "error de conversión"
+
+    def test_usd_api_monto_como_fallback_cuando_monto_nan(self):
+        # Si Monto es NaN pero API_Monto tiene valor, debe usarlo
+        etapa = _reporte(usd=900)
+        result = etapa._convertir_monto(
+            pd.Series({"Moneda": "USD", "Monto": float("nan"), "API_Monto": "500", "Tipo Adquisición": ""})
+        )
+        assert result == 500 * 900
+        assert etapa.stats["usd"] == 1
+
+    def test_moneda_nan_usa_fallback_generico(self):
+        # Moneda NaN (truthy) no debe causar crash; cae al fallback genérico
+        result = _reporte()._convertir_monto(
+            pd.Series({"Moneda": float("nan"), "Monto": "2000000", "Tipo Adquisición": ""})
+        )
+        assert result == 2_000_000
 
 
 # ---------------------------------------------------------------------------

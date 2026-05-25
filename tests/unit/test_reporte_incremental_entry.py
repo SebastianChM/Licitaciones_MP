@@ -11,9 +11,9 @@ El alias interno se llama '_Etapa5GeneradorReporte' para no colisionar con la
 clase legacy 'GeneradorReporteIncremental' definida más abajo en el mismo módulo.
 """
 import sys
+from unittest.mock import patch
+
 import pytest
-from pathlib import Path
-from unittest.mock import MagicMock, patch
 
 _PATCH_ETAPA5 = 'reporte_incremental._Etapa5GeneradorReporte'
 _PATCH_CONFIG = 'reporte_incremental.Config'

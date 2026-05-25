@@ -1,2 +1,0 @@
-2025-08-06 12:17:32,665 - INFO - 🚀 Inicio de enriquecimiento
-2025-08-06 12:17:32,713 - INFO - 🔎 (1/75) Consultando 735-3-LR25

@@ -16,3 +16,6 @@ repos:
       - id: check-added-large-files
         args: [--maxkb=500]
       - id: debug-statements
+      - id: check-merge-conflict
+      - id: no-commit-to-branch
+        args: [--branch, main]

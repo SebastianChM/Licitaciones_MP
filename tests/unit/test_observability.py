@@ -3,10 +3,8 @@
 Cubre ObservabilityRules (6 reglas de negocio) y RunSummaryReporter.
 """
 import json
-import pytest
-from pathlib import Path
-from unittest.mock import MagicMock
 
+import pytest
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -77,21 +75,21 @@ class TestCheckEtapa2:
 
     def test_filtradas_cero_genera_warning(self, obs, context, alerts):
         context.stage_results['etapa2'] = _make_stage_result(
-            metrics={'total_analizadas': 100, 'total_filtradas': 0}
+            metrics={'original': 100, 'final': 0}
         )
         obs._check_etapa2()
         assert any(a.rule_id == "E2_FILTRO_VACIO" for a in alerts.get_history())
 
     def test_tasa_alta_genera_warning(self, obs, context, alerts):
         context.stage_results['etapa2'] = _make_stage_result(
-            metrics={'total_analizadas': 1000, 'total_filtradas': 100}  # 10%
+            metrics={'original': 1000, 'final': 100}  # 10%
         )
         obs._check_etapa2()
         assert any(a.rule_id == "E2_TASA_FILTRADO_ALTA" for a in alerts.get_history())
 
     def test_tasa_normal_sin_alertas(self, obs, context, alerts):
         context.stage_results['etapa2'] = _make_stage_result(
-            metrics={'total_analizadas': 10000, 'total_filtradas': 200}  # 2%
+            metrics={'original': 10000, 'final': 200}  # 2%
         )
         obs._check_etapa2()
         assert alerts.get_history() == []
@@ -241,8 +239,8 @@ class TestRunSummaryReporter:
         assert data['metadata']['estado_general'] == "ERROR"
 
     def test_alerts_incluidas_en_json(self, context, alerts, tmp_path):
-        from utils.observability import RunSummaryReporter
         from utils.alerts import AlertSeverity
+        from utils.observability import RunSummaryReporter
         alerts.trigger("TEST_RULE", "Test message", AlertSeverity.WARNING)
         context.config.BASE_DIR = tmp_path
         reporter = RunSummaryReporter(context, alerts)

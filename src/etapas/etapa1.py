@@ -1,18 +1,29 @@
-"""ETAPA 1 - Auditoría de Taxonomía"""
-__version__ = "3.0.0"
+"""Etapa 1 — auditoría de taxonomía: compara el archivo MP contra PIVOT_MAESTRO y detecta valores nuevos."""
+from importlib.metadata import version as _pkg_version
 
-import pandas as pd
-import openpyxl
-from pathlib import Path
-from typing import Dict, List, Tuple
+__version__ = _pkg_version("licitaciones-mp")
+
 from datetime import datetime
-from utils import (normalizar_texto, encontrar_similares, validar_archivo_excel, encontrar_columna,
-                      leer_excel_con_header_dinamico, obtener_timestamp)
-from core.contracts import BaseStage, StageResult
+from pathlib import Path
+
+import openpyxl
+import pandas as pd
+
 from core.context import PipelineContext
+from core.contracts import BaseStage, StageResult
+from utils import (
+    encontrar_columna,
+    encontrar_similares,
+    leer_excel_con_header_dinamico,
+    normalizar_texto,
+    obtener_timestamp,
+    validar_archivo_excel,
+)
+
 
 class AuditorTaxonomia(BaseStage):
-    def __init__(self):
+    """Audita la taxonomía del archivo MP detectando valores nuevos o similares respecto al PIVOT_MAESTRO."""
+    def __init__(self) -> None:
         super().__init__()
         self.stats = {'total_mp': 0, 'nuevos': 0, 'similares': 0, 'campos': 0, 'inicio': datetime.now()}
         self.umbral_alerta = 3
@@ -24,11 +35,9 @@ class AuditorTaxonomia(BaseStage):
         return "auditoria"
 
     def validate_inputs(self, context: PipelineContext) -> bool:
-        if not context.get_artifact('etapa0_output') and not context.config.LICITACIONES_MP.exists():
-            return False
-        return True
+        return bool(context.get_artifact('etapa0_output') or context.config.LICITACIONES_MP.exists())
     
-    def _cargar_parametros_pivot(self):
+    def _cargar_parametros_pivot(self) -> None:
         try:
             params = self.config.cargar_desde_pivot()
             if 'Umbral de Alerta' in params:
@@ -40,12 +49,13 @@ class AuditorTaxonomia(BaseStage):
         except Exception as e:
             self.logger.warning(f"No se cargaron parámetros PIVOT: {e}")
     
-    def run(self, context: PipelineContext) -> StageResult:
-        self.bind(context)
+    def _execute(self, context: PipelineContext) -> StageResult:
+        """Ejecuta la auditoría de taxonomía y registra los valores nuevos o similares encontrados."""
+        # Precedencia: PIVOT_MAESTRO (si existe) > Config (.env) > __init__ (defaults)
         self.umbral_alerta = self.config.ETAPA1_UMBRAL_ALERTA
         self.detectar_similares = self.config.ETAPA1_DETECTAR_SIMILARES
         self.umbral_similitud = self.config.ETAPA1_SIMILITUD_THRESHOLD
-        self._cargar_parametros_pivot()
+        self._cargar_parametros_pivot()  # puede sobreescribir los valores de config si PIVOT tiene valores
         
         self.logger.section("ETAPA 1 - AUDITORÍA DE TAXONOMÍA", 80)
         self.logger.info(f"[>>] Iniciando v{__version__} | RunID: {context.run_id}")
@@ -80,10 +90,8 @@ class AuditorTaxonomia(BaseStage):
         except Exception as e:
             self.logger.error(f"[X] Error: {e}", exc_info=True)
             return StageResult(success=False, stage_name=self.name, error_message=str(e), custom_data={'stats': self.stats})
-        finally:
-            self.logger.finalize()
     
-    def _validar_prerequisitos(self, archivo_input: Path):
+    def _validar_prerequisitos(self, archivo_input: Path) -> None:
         self.logger.subsection("Validando prerequisitos")
         for nombre, ruta in [('PIVOT_MAESTRO', self.config.PIVOT_MAESTRO),
                              ('Licitaciones MP', archivo_input)]:
@@ -92,7 +100,7 @@ class AuditorTaxonomia(BaseStage):
                 raise FileNotFoundError(f"{nombre}: {msg}")
             self.logger.info(f"[OK] {nombre}")
     
-    def _cargar_datos(self, archivo_input: Path) -> Tuple[pd.DataFrame, Dict[str, set]]:
+    def _cargar_datos(self, archivo_input: Path) -> tuple[pd.DataFrame, dict[str, set]]:
         self.logger.subsection("Cargando datos")
         df_mp = leer_excel_con_header_dinamico(archivo_input, columna_referencia="Nivel 1")
         self.stats['total_mp'] = len(df_mp)
@@ -104,44 +112,46 @@ class AuditorTaxonomia(BaseStage):
         
         return df_mp, valores_pivot
     
-    def _cargar_valores_pivot(self) -> Dict[str, set]:
+    def _cargar_valores_pivot(self) -> dict[str, set]:
         wb = openpyxl.load_workbook(self.config.PIVOT_MAESTRO, data_only=True)
         ws = wb['04-BASE']
         valores = {'Nivel 1': set(), 'Nivel 2': set(), 'Nivel 3': set(), 'Generico': set()}
         
-        header_row = None
-        indices = {}
-        for i, row in enumerate(ws.iter_rows(max_row=30), 1):
-            vals = [normalizar_texto(str(c.value)) if c.value else "" for c in row[:10]]
-            if any(('NIVEL' in v and '1' in v) or 'NIVEL1' in v for v in vals):
-                header_row = i
-                for j, celda in enumerate(row[:10]):
-                    if celda.value:
-                        norm = normalizar_texto(str(celda.value))
-                        if 'NIVEL' in norm and '1' in norm:
-                            indices['Nivel 1'] = j
-                        elif 'NIVEL' in norm and '2' in norm:
-                            indices['Nivel 2'] = j
-                        elif 'NIVEL' in norm and '3' in norm:
-                            indices['Nivel 3'] = j
-                        elif 'GENERICO' in norm:
-                            indices['Generico'] = j
-                break
-        
-        if not header_row:
+        try:
+            header_row = None
+            indices = {}
+            for i, row in enumerate(ws.iter_rows(max_row=30), 1):
+                vals = [normalizar_texto(str(c.value)) if c.value else "" for c in row[:10]]
+                if any(('NIVEL' in v and '1' in v) or 'NIVEL1' in v for v in vals):
+                    header_row = i
+                    for j, celda in enumerate(row[:10]):
+                        if celda.value:
+                            norm = normalizar_texto(str(celda.value))
+                            if 'NIVEL' in norm and '1' in norm:
+                                indices['Nivel 1'] = j
+                            elif 'NIVEL' in norm and '2' in norm:
+                                indices['Nivel 2'] = j
+                            elif 'NIVEL' in norm and '3' in norm:
+                                indices['Nivel 3'] = j
+                            elif 'GENERICO' in norm:
+                                indices['Generico'] = j
+                    break
+            
+            if not header_row:
+                raise ValueError("No se encontró header en PIVOT_MAESTRO")
+            
+            for row in ws.iter_rows(min_row=header_row + 1):
+                for campo, idx in indices.items():
+                    val = row[idx].value
+                    # Usar comparación explícita con None en lugar de pd.isna() (contexto openpyxl, no pandas)
+                    if val is not None and str(val).strip() not in ('', 'nan', 'None'):
+                        valores[campo].add(normalizar_texto(str(val)))
+        finally:
             wb.close()
-            raise ValueError("No se encontró header en PIVOT_MAESTRO")
         
-        for row in ws.iter_rows(min_row=header_row + 1):
-            for campo, idx in indices.items():
-                val = row[idx].value
-                if val and not pd.isna(val):
-                    valores[campo].add(normalizar_texto(val))
-        
-        wb.close()
         return valores
     
-    def _procesar_campos(self, df_mp: pd.DataFrame, valores_pivot: Dict[str, set]) -> Dict[str, List]:
+    def _procesar_campos(self, df_mp: pd.DataFrame, valores_pivot: dict[str, set]) -> dict[str, list]:
         self.logger.subsection("Procesando taxonomía")
         hallazgos = {'nuevos': [], 'similares': []}
         
@@ -158,6 +168,11 @@ class AuditorTaxonomia(BaseStage):
             nuevos_campo = []
             similares_campo = []
             
+            # Para Genérico (>5,000 valores PIVOT) la detección de similares es O(n×m)
+            # y puede tardar varios minutos. Se omite para este nivel.
+            detectar_sim = self.detectar_similares and campo != 'Generico'
+            pivot_list = list(valores_pivot[campo]) if detectar_sim else []
+            
             for valor, cant in conteo.items():
                 norm = normalizar_texto(valor)
                 if norm in valores_pivot[campo]:
@@ -168,8 +183,8 @@ class AuditorTaxonomia(BaseStage):
                     'ocurrencias': cant, 'porcentaje': (cant / len(df_mp)) * 100
                 })
                 
-                if self.detectar_similares:
-                    sims = encontrar_similares(norm, list(valores_pivot[campo]), umbral=self.umbral_similitud)
+                if detectar_sim:
+                    sims = encontrar_similares(norm, pivot_list, umbral=self.umbral_similitud)
                     if sims:
                         similares_campo.append({
                             'campo': campo, 'valor_nuevo': valor,
@@ -192,7 +207,7 @@ class AuditorTaxonomia(BaseStage):
         
         return hallazgos
     
-    def _generar_reporte(self, hallazgos: Dict) -> Path:
+    def _generar_reporte(self, hallazgos: dict) -> Path:
         self.logger.subsection("Generando reporte")
         ruta = self.config.HALLAZGOS_DIR / f"HALLAZGOS_{obtener_timestamp()}.xlsx"
         
@@ -214,7 +229,7 @@ class AuditorTaxonomia(BaseStage):
         
         return ruta
     
-    def _imprimir_resumen(self):
+    def _imprimir_resumen(self) -> None:
         s = self.stats
         self.logger.info(f"""
 ╔══════════════════════════════════════════════════════════════╗
@@ -238,9 +253,10 @@ class AuditorTaxonomia(BaseStage):
    - Umbral similitud:   {self.umbral_similitud:.1%}
 """)
 
-def main():
-    from core.context import PipelineContext
+def main() -> int | None:
     from utils.config import Config
+    from utils.logger import configurar_consola_utf8
+    configurar_consola_utf8()
     
     try:
         context = PipelineContext(config=Config())

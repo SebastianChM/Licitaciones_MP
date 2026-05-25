@@ -1,15 +1,25 @@
+"""
+Reglas de observabilidad y reporte de resumen de ejecución del pipeline.
+Evalua métricas de cada etapa y dispara alertas según umbrales de negocio.
+"""
+import json
+from datetime import datetime
+from pathlib import Path
+
 from core.context import PipelineContext
 from utils.alerts import AlertManager, AlertSeverity
-import json
-from pathlib import Path
-from datetime import datetime
+
+# Umbrales de negocio para reglas de observabilidad
+_TASA_RETENCION_MAX: float = 0.05   # >5% del universo nacional = filtro demasiado permisivo
+_TASA_ERROR_API_MAX: float = 0.20   # >20% de errores HTTP = API degradada/caída
+
 
 class ObservabilityRules:
-    def __init__(self, ctx: PipelineContext, alerts: AlertManager):
+    def __init__(self, ctx: PipelineContext, alerts: AlertManager) -> None:
         self.ctx = ctx
         self.alerts = alerts
     
-    def evaluate_all(self):
+    def evaluate_all(self) -> None:
         """Dispara todas las reglas de negocio sobre los StageResult"""
         self._check_etapa0()
         self._check_etapa2()
@@ -17,7 +27,7 @@ class ObservabilityRules:
         self._check_etapa4()
         self._check_fallback_modes()
 
-    def _check_etapa0(self):
+    def _check_etapa0(self) -> None:
         result = self.ctx.stage_results.get('etapa0')
         if not result or not result.success:
             return
@@ -33,14 +43,14 @@ class ObservabilityRules:
                 recommendation="Revisar acceso a la URL de Mercado Público o si hubo corte en la red."
             )
             
-    def _check_etapa2(self):
+    def _check_etapa2(self) -> None:
         result = self.ctx.stage_results.get('etapa2')
         if not result or not result.success:
             return
         
         metrics = result.metrics_produced
-        total = metrics.get('total_analizadas', 0)
-        filtradas = metrics.get('total_filtradas', 0)
+        total = metrics.get('original', 0)
+        filtradas = metrics.get('final', 0)
         
         if filtradas == 0:
             self.alerts.trigger(
@@ -52,7 +62,7 @@ class ObservabilityRules:
             )
         elif total > 0:
             tasa = filtradas / total
-            if tasa > 0.05: # más de 5% de Licitaciones Globales filtradas es absurdo para un estudio (generalmente ~0.1%)
+            if tasa > _TASA_RETENCION_MAX:
                 self.alerts.trigger(
                     rule_id="E2_TASA_FILTRADO_ALTA",
                     message=f"La tasa de retención es inusualmente alta: {tasa*100:.2f}% de la base nacional.",
@@ -61,7 +71,7 @@ class ObservabilityRules:
                     recommendation="Revisar si un término general como 'Servicios' se coló en palabras clave."
                 )
 
-    def _check_etapa3(self):
+    def _check_etapa3(self) -> None:
         result = self.ctx.stage_results.get('etapa3')
         if not result or not result.success:
             return
@@ -74,7 +84,7 @@ class ObservabilityRules:
             return
             
         tasa_error = errores / total
-        if tasa_error > 0.2:
+        if tasa_error > _TASA_ERROR_API_MAX:
             self.alerts.trigger(
                 rule_id="E3_TASA_ERROR_ALTA",
                 message=f"El {tasa_error*100:.1f}% de las comprobaciones HTTP a MP fallaron por timeout o no resuelta.",
@@ -83,7 +93,7 @@ class ObservabilityRules:
                 recommendation="Servidor de Mercado Público inestable o caído parcialmente."
             )
 
-    def _check_etapa4(self):
+    def _check_etapa4(self) -> None:
         result = self.ctx.stage_results.get('etapa4')
         if not result:
             return
@@ -97,7 +107,7 @@ class ObservabilityRules:
                 recommendation="Corrupción en la generación nativa de openpyxl."
              )
 
-    def _check_fallback_modes(self):
+    def _check_fallback_modes(self) -> None:
         if self.ctx.flags.get('allow_fallback'):
             self.alerts.trigger(
                 rule_id="MODO_STANDALONE",
@@ -108,7 +118,9 @@ class ObservabilityRules:
             )
 
 class RunSummaryReporter:
-    def __init__(self, ctx: PipelineContext, alerts: AlertManager):
+    """Genera y persiste el resumen JSON de cada ejecución del pipeline."""
+
+    def __init__(self, ctx: PipelineContext, alerts: AlertManager) -> None:
         self.ctx = ctx
         self.alerts = alerts
         self.run_id = self.ctx.run_id
@@ -117,7 +129,7 @@ class RunSummaryReporter:
         """Extrae metadata, métricas puras y reporta un JSON unificado del Run"""
         
         start_time = self.ctx.start_time
-        end_time = datetime.now()
+        end_time = datetime.now(tz=start_time.tzinfo)
         duration = end_time - start_time
         
         etapas_exitosas = sum(1 for _, res in self.ctx.stage_results.items() if res.success)
@@ -171,7 +183,7 @@ class RunSummaryReporter:
         log_dir.mkdir(parents=True, exist_ok=True)
         summary_path = log_dir / f"run_{self.run_id}.json"
         
-        with open(summary_path, "w", encoding="utf-8") as f:
+        with summary_path.open("w", encoding="utf-8") as f:
             f.write(json.dumps(resumen, indent=4, ensure_ascii=False,
                                default=lambda o: o.isoformat() if hasattr(o, 'isoformat') else str(o)))
             

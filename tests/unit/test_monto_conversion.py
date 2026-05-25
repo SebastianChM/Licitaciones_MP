@@ -7,9 +7,8 @@ Ejecutar con: pytest tests/unit/test_monto_conversion.py -v
 """
 
 import re
-import pytest
-import pandas as pd
 
+import pandas as pd
 
 # ---------------------------------------------------------------------------
 # Lógica pura extraída de GeneradorReporte._convertir_monto

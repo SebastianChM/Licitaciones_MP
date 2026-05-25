@@ -5,13 +5,11 @@ Tests adicionales para utils/config.py — cubre los huecos de cobertura:
 - cargar_desde_pivot() lectura exitosa (162-173)
 - info() (180)
 """
-import pytest
 from pathlib import Path
-from unittest.mock import patch
+
 import openpyxl
 
 from utils.config import Config
-
 
 # ---------------------------------------------------------------------------
 # validar_estructura

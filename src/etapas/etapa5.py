@@ -1,48 +1,37 @@
-"""
-Etapa 5: Análisis Incremental
-Combina inteligentemente datos nuevos con reportes existentes preservando trabajo manual.
+"""Etapa 5 — análisis incremental: combina licitaciones nuevas con reportes existentes preservando trabajo manual."""
 
-Esta etapa toma el reporte generado en Etapa 4 y lo combina con reportes anteriores,
-preservando colores, filtros y ordenamientos aplicados por compañeros mientras
-agrega solo las licitaciones realmente nuevas.
-"""
-
+import json
 import shutil
-import pandas as pd
-from pathlib import Path
 from datetime import datetime
-from typing import Dict, Optional
-from openpyxl import load_workbook, Workbook
-from openpyxl.styles import PatternFill, Font, Alignment
-from openpyxl.formatting.rule import FormulaRule
-from openpyxl.utils import get_column_letter
+from pathlib import Path
+from typing import Any
 
-from utils.analizador_incremental import AnalizadorIncremental
-from core.contracts import BaseStage, StageResult
+import pandas as pd
+from openpyxl import Workbook, load_workbook
+
 from core.context import PipelineContext
+from core.contracts import BaseStage, StageResult
+from utils.analizador_incremental import AnalizadorIncremental
+from utils.excel_formatter import guardar_formateado_reporte
 
 
 class GeneradorReporteIncremental(BaseStage):
-    """
-    Etapa 5: Genera reporte incremental preservando trabajo manual de compañeros.
-    
-    Funcionalidades:
-    - Detecta licitaciones nuevas vs existentes
-    - Preserva colores, filtros y formateo manual
-    - Solo agrega datos realmente nuevos
-    - Actualiza campos críticos (días para cierre)
-    - Mueve licitaciones vencidas a hoja separada
-    """
+    """Combina el reporte de etapa 4 con reportes previos, añadiendo solo licitaciones nuevas y preservando el formateo manual."""
     
     # Nombres canónicos de columnas del reporte (generados por Etapa 4)
     NUMERO_ADQ_COL = 'Numero Adquisición'
     REGION_COL = 'Región'
     FECHA_CIERRE_COL = 'Fecha Cierre Licitación'
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self.analizador = AnalizadorIncremental()
-        
+
+    def bind(self, context: PipelineContext) -> None:
+        """Enlaza contexto/logger y redirige el logger del analizador al de este stage."""
+        super().bind(context)
+        self.analizador.logger = self.logger
+
     @property
     def name(self) -> str:
         return "incremental"
@@ -67,15 +56,12 @@ class GeneradorReporteIncremental(BaseStage):
         try:
             pd.read_excel(archivo_entrada, engine='openpyxl', nrows=1)
         except Exception as e:
-            raise ValueError(f"El archivo base aportado a Etapa 5 es corrupto o no es Excel: {str(e)}")
+            raise ValueError(f"El archivo base aportado a Etapa 5 es corrupto o no es Excel: {e!s}") from e
             
         return True
 
-    def run(self, context: PipelineContext) -> StageResult:
-        self.bind(context)
-        
+    def _execute(self, context: PipelineContext) -> StageResult:
         try:
-            self.validate_inputs(context)
             self.logger.section("ETAPA 5: REPORTE INCREMENTAL")
             inicio = datetime.now()
             
@@ -94,44 +80,54 @@ class GeneradorReporteIncremental(BaseStage):
             # 2. Buscar reporte incremental anterior
             reporte_anterior = self._encontrar_reporte_incremental_anterior()
             
+            # Pre-computar análisis incremental UNA VEZ — evita doble lectura del archivo anterior
+            analisis_reporte = (
+                self.analizador.analizar_reporte_incremental(datos_nuevos, reporte_anterior)
+                if reporte_anterior else None
+            )
+
             if reporte_anterior:
                 self.logger.info(f"📋 Reporte anterior encontrado: {reporte_anterior.name}")
-                resultado = self._actualizar_reporte_existente(datos_nuevos, reporte_anterior)
+                resultado = self._actualizar_reporte_existente(datos_nuevos, reporte_anterior, analisis_reporte)
             else:
                 self.logger.info("📄 No hay reporte anterior, creando reporte inicial")
                 resultado = self._crear_reporte_inicial(datos_nuevos)
             
-            # 3. Generar análisis de cambios
-            analisis = self._generar_analisis_cambios(datos_nuevos, reporte_anterior)
+            # 3. Generar análisis de cambios (análisis ya computado, sin releer disco)
+            analisis = self._generar_analisis_cambios(datos_nuevos, reporte_anterior, analisis_reporte)
             
             # 4. Guardar sugerencias para PIVOT
             self._guardar_sugerencias_pivot(analisis)
             
             
             rutas_generadas = []
-            if 'archivo_generado' in resultado and resultado['archivo_generado']:
+            if resultado.get('archivo_generado'):
                 rutas_generadas.append(resultado['archivo_generado'])
                 context.add_artifact('etapa5_output', resultado['archivo_generado'])
             
             tiempo_total = datetime.now() - inicio
             resultado['tiempo_ejecucion'] = str(tiempo_total)
             
+            # Serializar Path → str para compatibilidad con json.dumps en observabilidad
+            resultado_serial = {
+                k: str(v) if isinstance(v, Path) else v
+                for k, v in resultado.items()
+            }
+            
             self.logger.info(f"✅ Etapa 5 completada en {tiempo_total}")
             return StageResult(
                 success=True,
                 stage_name=self.name,
                 files_produced=rutas_generadas,
-                metrics_produced=resultado,
-                custom_data={'detalles': resultado}
+                metrics_produced=resultado_serial,
+                custom_data={'detalles': resultado_serial}
             )
             
         except Exception as e:
             self.logger.error(f"❌ Error crítico en Etapa 5: {e}", exc_info=True)
             return StageResult(success=False, stage_name=self.name, error_message=str(e))
-        finally:
-            self.logger.finalize()
     
-    def _encontrar_reporte_incremental_anterior(self) -> Optional[Path]:
+    def _encontrar_reporte_incremental_anterior(self) -> Path | None:
         """Encuentra el reporte incremental más reciente"""
         
         archivos = list(self.dir_presentacion_incremental.glob("Reporte_Incremental_*.xlsx"))
@@ -143,7 +139,7 @@ class GeneradorReporteIncremental(BaseStage):
         
         return None
     
-    def _actualizar_reporte_existente(self, datos_nuevos: pd.DataFrame, reporte_anterior: Path) -> Dict:
+    def _actualizar_reporte_existente(self, datos_nuevos: pd.DataFrame, reporte_anterior: Path, analisis_reporte: dict | None = None) -> dict:
         """Actualiza reporte existente preservando trabajo manual a nivel de celda.
 
         Copia el archivo anterior (conservando colores y formatos manuales), luego:
@@ -153,10 +149,12 @@ class GeneradorReporteIncremental(BaseStage):
         """
         self.logger.info("🔄 Actualizando reporte existente (preservando formato manual)...")
 
-        analisis = self.analizador.analizar_reporte_incremental(datos_nuevos, reporte_anterior)
-        licitaciones_nuevas = analisis['licitaciones_nuevas']
-        licitaciones_existentes = analisis['licitaciones_existentes']
-        licitaciones_vencidas = analisis['licitaciones_vencidas']
+        # Usar análisis pre-computado si se provee (evita doble lectura de disco desde _execute)
+        if analisis_reporte is None:
+            analisis_reporte = self.analizador.analizar_reporte_incremental(datos_nuevos, reporte_anterior)
+        licitaciones_nuevas = analisis_reporte['licitaciones_nuevas']
+        licitaciones_existentes = analisis_reporte['licitaciones_existentes']
+        licitaciones_vencidas = analisis_reporte['licitaciones_vencidas']
 
         self.logger.info(f"📊 Análisis: {len(licitaciones_nuevas)} nuevas, "
                          f"{len(licitaciones_existentes)} existentes, "
@@ -189,7 +187,8 @@ class GeneradorReporteIncremental(BaseStage):
             if col_codigo_df and 'Días para cierre' in datos_nuevos.columns:
                 dias_map = dict(zip(
                     datos_nuevos[col_codigo_df].astype(str),
-                    datos_nuevos['Días para cierre']
+                    datos_nuevos['Días para cierre'],
+                    strict=False,
                 ))
                 for row in ws.iter_rows(min_row=2):
                     codigo_val = row[col_codigo - 1].value
@@ -221,7 +220,7 @@ class GeneradorReporteIncremental(BaseStage):
             'tipo': 'incremental'
         }
     
-    def _crear_reporte_inicial(self, datos_nuevos: pd.DataFrame) -> Dict:
+    def _crear_reporte_inicial(self, datos_nuevos: pd.DataFrame) -> dict:
         """Crea el primer reporte incremental"""
         
         self.logger.info("📄 Creando reporte incremental inicial...")
@@ -230,7 +229,7 @@ class GeneradorReporteIncremental(BaseStage):
         archivo_incremental = self.dir_presentacion_incremental / f"Reporte_Incremental_{timestamp}.xlsx"
         
         # Crear Excel con formato mejorado
-        self._guardar_formateado(datos_nuevos, archivo_incremental, "Vigentes")
+        guardar_formateado_reporte(datos_nuevos, archivo_incremental, "Vigentes")
         self.logger.info(f"💾 Reporte inicial guardado: {archivo_incremental.name}")
         
         return {
@@ -242,15 +241,15 @@ class GeneradorReporteIncremental(BaseStage):
         }
 
     def _mover_licitaciones_vencidas(
-        self, wb: Workbook, ws_vigentes, vencidas: pd.DataFrame, col_codigo_idx: int
-    ):
+        self, wb: Workbook, ws_vigentes: Any, vencidas: pd.DataFrame, col_codigo_idx: int
+    ) -> None:
         """Copia licitaciones vencidas a hoja 'Vencidas' y las elimina de 'Vigentes'."""
         if 'Vencidas' not in wb.sheetnames:
             wb.create_sheet('Vencidas')
         ws_vencidas = wb['Vencidas']
 
-        # Copiar encabezado si la hoja está vacía
-        if ws_vencidas.max_row == 1 and ws_vencidas.cell(1, 1).value is None:
+        # Copiar encabezado si la hoja está vacía (max_row puede ser None o 1 en openpyxl)
+        if (ws_vencidas.max_row or 0) <= 1 and ws_vencidas.cell(1, 1).value is None:
             for c in range(1, ws_vigentes.max_column + 1):
                 ws_vencidas.cell(1, c).value = ws_vigentes.cell(1, c).value
 
@@ -278,14 +277,14 @@ class GeneradorReporteIncremental(BaseStage):
 
         self.logger.info(f"📦 {len(rows_to_delete)} licitaciones movidas a hoja 'Vencidas'")
     
-    def _generar_analisis_cambios(self, datos_nuevos: pd.DataFrame, reporte_anterior: Optional[Path]) -> Dict:
-        """Genera análisis completo de cambios"""
-        
+    def _generar_analisis_cambios(self, datos_nuevos: pd.DataFrame, reporte_anterior: Path | None, analisis_reporte: dict | None = None) -> dict:
+        """Genera análisis completo de cambios."""
         analisis_taxonomia = self.analizador.analizar_cambios_taxonomia(datos_nuevos)
         
-        if reporte_anterior:
+        if reporte_anterior and analisis_reporte is None:
+            # Computar solo si no se proveyó un análisis pre-calculado
             analisis_reporte = self.analizador.analizar_reporte_incremental(datos_nuevos, reporte_anterior)
-        else:
+        elif not reporte_anterior:
             analisis_reporte = {
                 'licitaciones_nuevas': datos_nuevos,
                 'licitaciones_existentes': pd.DataFrame(),
@@ -299,154 +298,48 @@ class GeneradorReporteIncremental(BaseStage):
         
         return self.analizador.generar_reporte_cambios(analisis_taxonomia, analisis_reporte)
     
-    def _guardar_sugerencias_pivot(self, analisis: Dict):
+    def _guardar_sugerencias_pivot(self, analisis: dict) -> None:
         """Guarda sugerencias para actualizar PIVOT_MAESTRO"""
-        
-        import json
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         archivo_sugerencias = self.config.LOG_DIR / f"sugerencias_pivot_etapa5_{timestamp}.json"
-        
-        with open(archivo_sugerencias, 'w', encoding='utf-8') as f:
-            json.dump(analisis, f, indent=2, ensure_ascii=False, default=str)
+
+        def _serializar(obj: Any) -> Any:
+            if isinstance(obj, pd.DataFrame):
+                return obj.to_dict(orient='records')
+            if isinstance(obj, set):
+                return sorted(obj)
+            return str(obj)
+
+        with archivo_sugerencias.open('w', encoding='utf-8') as f:
+            json.dump(analisis, f, indent=2, ensure_ascii=False, default=_serializar)
         
         self.logger.info(f"💡 Sugerencias PIVOT guardadas: {archivo_sugerencias.name}")
-    
-    def _generar_link_licitacion(self, codigo: str) -> str:
-        """Genera link a licitación en Mercado Público"""
-        if codigo:
-            return f"https://www.mercadopublico.cl/Procurement/Modules/RFB/DetailsAcquisition.aspx?idlicitacion={codigo}"
-        return ""
-    
-    def _calcular_dias_cierre(self, fecha_cierre) -> int:
-        """Calcula días para cierre"""
-        try:
-            if pd.isna(fecha_cierre):
-                return 999
-            fecha = pd.to_datetime(fecha_cierre)
-            hoy = datetime.now()
-            return (fecha - hoy).days
-        except Exception:
-            return 999
-    
-    def _guardar_formateado(self, df: pd.DataFrame, ruta: Path, hoja: str):
-        """Guarda Excel con formato mejorado: anchos automáticos, links clickeables, colores"""
-        df.to_excel(ruta, sheet_name=hoja, index=False, engine='openpyxl')
-        wb = load_workbook(ruta)
-        ws = wb[hoja]
-        
-        # === 1. FORMATO DE ENCABEZADOS ===
-        header_fill = PatternFill(start_color="0066CC", end_color="0066CC", fill_type="solid")
-        header_font = Font(bold=True, color="FFFFFF", size=11)
-        header_alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
-        
-        for col_idx in range(1, len(df.columns) + 1):
-            cell = ws.cell(row=1, column=col_idx)
-            cell.fill = header_fill
-            cell.font = header_font
-            cell.alignment = header_alignment
-        
-        # === 2. AJUSTAR ANCHOS DE COLUMNAS AUTOMÁTICAMENTE ===
-        anchos_columnas = {
-            "LINK": 12,
-            "Numero Adquisición": 18,
-            "Nombre": 50,
-            "Descripción": 60,
-            "Región": 30,
-            "Cliente (Organismo)": 40,
-            "Fecha Publicación": 20,
-            "Hora Publicación": 12,
-            "Fecha Inicio Preguntas": 20,
-            "Hora Inicio Preguntas": 12,
-            "Fecha Cierre Preguntas": 20,
-            "Hora Cierre Preguntas": 12,
-            "Fecha Apertura": 20,
-            "Hora Apertura": 12,
-            "Fecha Cierre Licitación": 20,
-            "Hora Cierre Licitación": 12,
-            "Fecha Adjudicación": 20,
-            "Hora Adjudicación": 12,
-            "Monto Estimado (CLP)": 18,
-            "Días para cierre": 12,
-            "ONU": 12,
-            "Nivel 1": 50,
-            "Nivel 2": 45,
-            "Nivel 3": 45,
-            "Genérico": 40,
-            "Trazabilidad": 15
-        }
-        
-        for col_idx, col_name in enumerate(df.columns, 1):
-            letra = get_column_letter(col_idx)
-            ancho_definido = anchos_columnas.get(col_name, 15)
-            ws.column_dimensions[letra].width = ancho_definido
-        
-        # === 3. CONVERTIR COLUMNA LINK EN HIPERVÍNCULOS CLICKEABLES ===
-        if "LINK" in df.columns:
-            col_link_idx = df.columns.get_loc("LINK") + 1
-            for row_idx in range(2, len(df) + 2):  # Desde fila 2 (después del header)
-                cell = ws.cell(row=row_idx, column=col_link_idx)
-                url = cell.value
-                if url and url.startswith("http"):
-                    cell.hyperlink = url
-                    cell.value = "Ver Licitación"
-                    cell.font = Font(color="0000FF", underline="single", size=10)
-                    cell.alignment = Alignment(horizontal='center', vertical='center')
-        
-        # === 4. ALINEACIÓN Y WRAP TEXT ===
-        for row in ws.iter_rows(min_row=2, max_row=len(df)+1, min_col=1, max_col=len(df.columns)):
-            for idx, cell in enumerate(row):
-                col_name = df.columns[idx]
-                
-                # Wrap text para columnas largas
-                if col_name in ["Nombre", "Descripción", "Nivel 1", "Nivel 2", "Nivel 3", "Cliente (Organismo)"]:
-                    cell.alignment = Alignment(wrap_text=True, vertical='top')
-                
-                # Centrar columnas cortas
-                elif col_name in ["LINK", "Dias para cierre", "ONU", "Hora Publicación", 
-                                  "Hora Inicio Preguntas", "Hora Cierre Preguntas", 
-                                  "Hora Apertura", "Hora Cierre Licitación", "Hora Adjudicación"]:
-                    cell.alignment = Alignment(horizontal='center', vertical='center')
-                
-                # Formato número para monto
-                elif col_name == "Monto Estimado (CLP)":
-                    cell.number_format = '#,##0'
-                    cell.alignment = Alignment(horizontal='right', vertical='center')
-        
-        # === 5. FORMATO CONDICIONAL PARA DÍAS DE CIERRE ===
-        if "Días para cierre" in df.columns:
-            col_dias = df.columns.get_loc("Días para cierre") + 1
-            letra_dias = get_column_letter(col_dias)
-            
-            # Rojo: menos de 7 días
-            ws.conditional_formatting.add(f"{letra_dias}2:{letra_dias}{len(df)+1}",
-                FormulaRule(formula=[f'{letra_dias}2<7'], stopIfTrue=True,
-                           fill=PatternFill(start_color="FF0000", end_color="FF0000", fill_type="solid"),
-                           font=Font(color="FFFFFF", bold=True)))
-            
-            # Amarillo: entre 7 y 14 días
-            ws.conditional_formatting.add(f"{letra_dias}2:{letra_dias}{len(df)+1}",
-                FormulaRule(formula=[f'AND({letra_dias}2>=7, {letra_dias}2<=14)'], stopIfTrue=True,
-                           fill=PatternFill(start_color="FFFF00", end_color="FFFF00", fill_type="solid")))
-            
-            # Verde: más de 14 días
-            ws.conditional_formatting.add(f"{letra_dias}2:{letra_dias}{len(df)+1}",
-                FormulaRule(formula=[f'{letra_dias}2>14'], stopIfTrue=True,
-                           fill=PatternFill(start_color="00AA00", end_color="00AA00", fill_type="solid")))
-        
-        # === 6. CONGELAR PRIMERA FILA (ENCABEZADOS) ===
-        ws.freeze_panes = "A2"
-        
-        # === 7. ALTURA DE FILAS ===
-        ws.row_dimensions[1].height = 30  # Header más alto
-        for row_idx in range(2, len(df) + 2):
-            ws.row_dimensions[row_idx].height = 60  # Filas con más espacio para wrap text
-        
-        wb.save(ruta)
-    
-    def _encontrar_fila_por_codigo(self, worksheet, codigo: str) -> Optional[int]:
-        """Encuentra la fila de una licitación por su código"""
-        for fila in range(2, worksheet.max_row + 1):
-            if worksheet.cell(row=fila, column=2).value == codigo:
-                return fila
-        return None
-    
+
+
+def main() -> int:
+    """Función principal para ejecutar Etapa 5 de forma independiente."""
+    from utils.config import Config
+    from utils.logger import configurar_consola_utf8
+    configurar_consola_utf8()
+
+    context = PipelineContext(config=Config())
+    context.flags['allow_fallback'] = True
+    gen = GeneradorReporteIncremental()
+    resultado = gen.run(context)
+
+    if resultado.success:
+        detalles = resultado.custom_data.get('detalles', {})
+        print("\n✅ ETAPA 5 COMPLETADA")
+        print(f"   * Tipo:                  {detalles.get('tipo', 'N/A')}")
+        print(f"   * Licitaciones nuevas:   {detalles.get('licitaciones_nuevas', 0)}")
+        print(f"   * Licitaciones existentes: {detalles.get('licitaciones_existentes', 0)}")
+        print(f"   * Licitaciones vencidas: {detalles.get('licitaciones_vencidas', 0)}")
+        return 0
+
+    print(f"\n❌ ERROR: {resultado.error_message}")
+    return 1
+
+
+if __name__ == "__main__":
+    exit(main())
+

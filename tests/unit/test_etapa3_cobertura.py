@@ -7,14 +7,13 @@ Tests adicionales para Etapa3 — cubre huecos de cobertura restantes:
 - _imprimir_resumen            (líneas 348-362)
 - _consultar_api exception path (líneas 229-230)
 """
-import json
 import time
-import pytest
-import pandas as pd
-import requests.exceptions
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import pandas as pd
+import pytest
+import requests.exceptions
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -22,8 +21,8 @@ from unittest.mock import MagicMock, patch
 
 @pytest.fixture
 def etapa3(config, logger_mock):
-    from etapas.etapa3 import EnriquecedorAPI
     from core.context import PipelineContext
+    from etapas.etapa3 import EnriquecedorAPI
     stage = EnriquecedorAPI()
     ctx = PipelineContext(config=config)
     stage._context = ctx
@@ -223,7 +222,6 @@ class TestGenerarOutputs:
     def test_genera_xlsx_con_datos(self, etapa3, config, monkeypatch):
         config.ENRIQUECIDO_DIR.mkdir(parents=True, exist_ok=True)
         df = pd.DataFrame({"Nombre": ["A", "B"], "Monto": [100, 200]})
-        from utils import guardar_excel_con_formato
         with patch("etapas.etapa3.guardar_excel_con_formato") as mock_guardar:
             result = etapa3._generar_outputs(df)
         assert len(result) == 1
@@ -339,8 +337,7 @@ class TestEnriquecerCheckpointRamas:
             "Numero Adquisición": ["LIC-001"],
             "Nombre": ["Test"],
         })
-        col_codigo = "Numero Adquisición"
-        hash_ds = hashlib.sha256("LIC-001".encode()).hexdigest()
+        hash_ds = hashlib.sha256(b"LIC-001").hexdigest()
 
         checkpoint_dir = tmp_path / "temp" / "checkpoints"
         checkpoint_dir.mkdir(parents=True)
@@ -368,7 +365,7 @@ class TestEnriquecerCheckpointRamas:
         import hashlib
 
         df = pd.DataFrame({"Numero Adquisición": ["LIC-999"]})
-        hash_ds = hashlib.sha256("LIC-999".encode()).hexdigest()
+        hash_ds = hashlib.sha256(b"LIC-999").hexdigest()
 
         checkpoint_dir = tmp_path / "temp" / "checkpoints"
         checkpoint_dir.mkdir(parents=True)

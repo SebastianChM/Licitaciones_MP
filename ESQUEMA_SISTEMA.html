@@ -1,0 +1,520 @@
+﻿<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sistema MP — Esquema de Funcionamiento</title>
+  <style id="print-style-override"></style>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --navy:    #0d1b2a;
+      --blue:    #1565c0;
+      --blue2:   #1976d2;
+      --teal:    #00796b;
+      --teal2:   #009688;
+      --purple:  #6a1b9a;
+      --orange:  #e65100;
+      --amber:   #f57c00;
+      --green:   #2e7d32;
+      --light:   #f0f3f8;
+      --white:   #ffffff;
+      --gray:    #64748b;
+      --gray2:   #94a3b8;
+      --border:  #dde3ee;
+      --shadow:  0 2px 16px rgba(13,27,42,.10);
+    }
+
+    body { font-family: 'Inter', sans-serif; background: #e8ecf2; color: var(--navy); }
+
+    /* PANEL IMPRIMIR */
+    .print-panel {
+      position: fixed; bottom: 28px; right: 28px;
+      display: flex; flex-direction: column; align-items: flex-end; gap: 8px; z-index: 300;
+    }
+    .print-label {
+      font-size: .71rem; font-weight: 600; color: var(--gray);
+      background: white; padding: 3px 10px; border-radius: 4px;
+      box-shadow: 0 1px 6px rgba(0,0,0,.12);
+    }
+    .print-btns { display: flex; gap: 8px; }
+    .btn-print {
+      border: none; padding: 11px 20px; border-radius: 7px;
+      font-family: 'Inter', sans-serif; font-size: .85rem; font-weight: 600;
+      cursor: pointer; letter-spacing: .3px; color: white;
+      transition: filter .15s, transform .1s;
+    }
+    .btn-print:hover { filter: brightness(1.12); transform: translateY(-2px); }
+    .btn-portrait  { background: var(--blue);  box-shadow: 0 4px 14px rgba(21,101,192,.4); }
+    .btn-landscape { background: var(--teal);  box-shadow: 0 4px 14px rgba(0,121,107,.4); }
+
+    /* DOCUMENTO */
+    .doc { max-width: 1040px; margin: 0 auto; padding: 32px 20px 60px; display: flex; flex-direction: column; gap: 24px; }
+    .page { background: var(--white); border-radius: 10px; box-shadow: var(--shadow); overflow: hidden; }
+
+    /* CABECERA */
+    .doc-header {
+      background: linear-gradient(135deg, var(--navy) 0%, #1a3050 55%, var(--blue) 100%);
+      color: white; padding: 28px 36px; display: flex; align-items: center; gap: 28px;
+    }
+    .logo-box {
+      font-size: 2rem; font-weight: 900; letter-spacing: 5px; color: white;
+      border: 2.5px solid rgba(255,255,255,.4); padding: 8px 20px; border-radius: 6px; white-space: nowrap; flex-shrink: 0;
+    }
+    .doc-header-text h1 { font-size: 1.55rem; font-weight: 700; }
+    .doc-header-text p  { margin-top: 5px; font-size: .9rem; font-weight: 300; color: rgba(255,255,255,.7); }
+
+    /* SECTION HEADER */
+    .sec-head { display: flex; align-items: center; gap: 10px; padding: 0 0 14px; margin-bottom: 18px; border-bottom: 2px solid var(--border); }
+    .sec-bar  { width: 4px; height: 20px; border-radius: 2px; flex-shrink: 0; }
+    .sec-head h2 { font-size: 1.05rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1.2px; color: var(--navy); }
+    .sec-tag  { margin-left: auto; font-size: .72rem; font-weight: 600; padding: 3px 10px; border-radius: 20px; background: var(--light); color: var(--gray); border: 1px solid var(--border); }
+
+    /* PÁGINA 1 */
+    .page-inner { padding: 28px 32px 30px; }
+
+    .stats-bar { display: grid; grid-template-columns: 1fr 56px 1fr; align-items: center; background: var(--navy); border-radius: 8px; overflow: hidden; margin-bottom: 28px; }
+    .stat-cell { padding: 20px 28px; text-align: center; }
+    .stat-cell.right { background: var(--teal); }
+    .stat-num { font-size: 2.8rem; font-weight: 900; color: white; line-height: 1; }
+    .stat-lbl { font-size: .82rem; font-weight: 400; color: rgba(255,255,255,.75); margin-top: 5px; }
+    .stat-mid { display: flex; flex-direction: column; align-items: center; justify-content: center; background: #1a2d42; padding: 10px 0; gap: 4px; }
+    .stat-arr { width: 0; height: 0; border-top: 9px solid transparent; border-bottom: 9px solid transparent; border-left: 12px solid rgba(255,255,255,.35); }
+    .stat-lbl2 { font-size: .62rem; font-weight: 600; color: rgba(255,255,255,.5); text-align: center; letter-spacing: .5px; line-height: 1.4; }
+
+    /* PIPELINE 3x2 */
+    .pipeline-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+    .pipe-card { border: 1px solid var(--border); border-radius: 8px; padding: 16px 16px 14px; transition: transform .15s, box-shadow .15s; }
+    .pipe-card:hover { transform: translateY(-3px); box-shadow: var(--shadow); }
+    .pipe-top { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+    .pipe-num { width: 26px; height: 26px; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: .72rem; font-weight: 800; color: white; }
+    .pipe-title { font-size: .9rem; font-weight: 700; line-height: 1.3; }
+    .pipe-desc  { font-size: .78rem; color: var(--gray); line-height: 1.5; }
+    .pipe-pill  { display: inline-block; margin-top: 10px; font-size: .7rem; font-weight: 600; padding: 2px 9px; border-radius: 20px; }
+    .c0 { border-top: 3px solid var(--blue2); }   .c0 .pipe-num { background: var(--blue2); }  .c0 .pipe-title { color: var(--blue); }  .c0 .pipe-pill { background: #e3f2fd; color: var(--blue); }
+    .c1 { border-top: 3px solid var(--purple); }  .c1 .pipe-num { background: var(--purple); } .c1 .pipe-title { color: var(--purple); }.c1 .pipe-pill { background: #f3e5f5; color: var(--purple); }
+    .c2 { border-top: 3px solid var(--orange); }  .c2 .pipe-num { background: var(--orange); } .c2 .pipe-title { color: var(--orange); }.c2 .pipe-pill { background: #fff3e0; color: var(--orange); }
+    .c3 { border-top: 3px solid var(--teal); }    .c3 .pipe-num { background: var(--teal); }   .c3 .pipe-title { color: var(--teal); }  .c3 .pipe-pill { background: #e0f2f1; color: var(--teal); }
+    .c4 { border-top: 3px solid #283593; }        .c4 .pipe-num { background: #283593; }       .c4 .pipe-title { color: #283593; }      .c4 .pipe-pill { background: #e8eaf6; color: #283593; }
+    .c5 { border-top: 3px solid var(--green); }   .c5 .pipe-num { background: var(--green); }  .c5 .pipe-title { color: var(--green); } .c5 .pipe-pill { background: #e8f5e9; color: var(--green); }
+
+    /* ARQUITECTURA */
+    .arch { border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+    .arch-stripe { padding: 6px 18px; display: flex; align-items: center; gap: 10px; border-bottom: 1px dashed var(--border); }
+    .arch-stripe-lbl { font-size: .68rem; font-weight: 700; letter-spacing: 1.3px; text-transform: uppercase; }
+    .arch-stripe.ext  { background: #dde5ff; } .arch-stripe.ext  .arch-stripe-lbl { color: var(--blue); }
+    .arch-stripe.app  { background: #ffe8d4; } .arch-stripe.app  .arch-stripe-lbl { color: var(--orange); }
+    .arch-stripe.data { background: #cff0e6; } .arch-stripe.data .arch-stripe-lbl { color: var(--teal); }
+    .arch-row-2 { display: grid; grid-template-columns: 1fr 1fr; background: #eef2ff; }
+    .arch-row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; background: #f0faf5; }
+    .arch-cell { padding: 14px 18px; border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+    .arch-cell:last-child { border-right: none; }
+    .arch-cell h4 { font-size: .83rem; font-weight: 700; margin-bottom: 4px; }
+    .arch-cell p  { font-size: .74rem; color: var(--gray); line-height: 1.5; }
+    .arch-app-inner { padding: 14px 18px; border-bottom: 1px solid var(--border); background: #fff8f2; }
+    .arch-gui { background: white; border: 1px solid #ffcc80; border-left: 4px solid var(--amber); border-radius: 6px; padding: 10px 14px; margin-bottom: 10px; }
+    .arch-gui h4 { font-size: .82rem; font-weight: 700; margin-bottom: 3px; }
+    .arch-gui p  { font-size: .73rem; color: var(--gray); }
+    .mini-pipe { display: grid; grid-template-columns: repeat(6, 1fr); border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+    .ms { padding: 8px 4px; text-align: center; font-size: .71rem; font-weight: 700; line-height: 1.3; border-right: 1px solid var(--border); color: var(--navy); }
+    .ms:last-child { border-right: none; }
+    .ms span { display: block; font-size: .63rem; font-weight: 400; color: var(--gray); margin-top: 2px; }
+    .ms0{background:#e3f2fd}.ms1{background:#f3e5f5}.ms2{background:#fff3e0}.ms3{background:#e0f2f1}.ms4{background:#e8eaf6}.ms5{background:#e8f5e9}
+    .arch-conns { display: flex; background: #f8f9fb; border-bottom: 1px solid var(--border); }
+    .arch-conn { flex: 1; display: flex; flex-direction: column; align-items: center; padding: 8px 10px; gap: 3px; border-right: 1px dashed var(--border); }
+    .arch-conn:last-child { border-right: none; }
+    .conn-line { width: 1.5px; height: 18px; background: linear-gradient(var(--gray2), var(--blue2)); }
+    .conn-tip  { width: 0; height: 0; border-left: 4px solid transparent; border-right: 4px solid transparent; border-top: 6px solid var(--blue2); }
+    .conn-lbl  { font-size: .67rem; color: var(--gray); font-weight: 500; text-align: center; line-height: 1.4; margin-top: 2px; }
+
+    /* PÁGINA 3 */
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .info-card { border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+    .info-head { padding: 11px 16px; font-size: .79rem; font-weight: 700; border-bottom: 1px solid var(--border); }
+    .info-head.blue  { background: #e3f2fd; color: #0d47a1; }
+    .info-head.green { background: #e8f5e9; color: #1b5e20; }
+    .info-row { display: flex; align-items: flex-start; gap: 10px; padding: 9px 14px; border-bottom: 1px solid #f0f3f7; }
+    .info-row:last-child { border-bottom: none; }
+    .info-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; margin-top: 5px; }
+    .info-row p { font-size: .78rem; line-height: 1.5; color: #374151; }
+    .info-row p strong { font-weight: 600; color: var(--navy); }
+
+    .steps-row { display: grid; grid-template-columns: repeat(5, 1fr); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+    .step-cell { padding: 16px 12px 14px; text-align: center; border-right: 1px solid var(--border); background: white; }
+    .step-cell:last-child { border-right: none; }
+    .step-n { width: 32px; height: 32px; border-radius: 50%; background: var(--navy); color: white; font-size: .85rem; font-weight: 700; display: flex; align-items: center; justify-content: center; margin: 0 auto 10px; }
+    .step-cell h4 { font-size: .82rem; font-weight: 700; margin-bottom: 5px; }
+    .step-cell p  { font-size: .74rem; color: var(--gray); line-height: 1.45; }
+    .step-time { display: inline-block; margin-top: 8px; font-size: .7rem; font-weight: 600; background: #e3f2fd; color: var(--blue); border-radius: 20px; padding: 2px 8px; }
+
+    /* PÁGINA 4 IA */
+    .ia-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 14px; }
+    .ia-card { border: 1px solid var(--border); border-radius: 8px; padding: 16px 18px; position: relative; overflow: hidden; }
+    .ia-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; }
+    .n1::before{background:var(--blue)} .n2::before{background:var(--purple)} .n3::before{background:var(--orange)} .n4::before{background:var(--green)}
+    .ia-lvl { font-size: .67rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--gray); margin-bottom: 5px; }
+    .ia-card h3 { font-size: .9rem; font-weight: 700; margin-bottom: 6px; }
+    .ia-card p  { font-size: .77rem; color: #374151; line-height: 1.55; }
+    .ia-tags { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
+    .ia-tag  { font-size: .69rem; font-weight: 600; padding: 2px 9px; border-radius: 20px; background: var(--light); border: 1px solid var(--border); color: var(--gray); }
+
+    table { width: 100%; border-collapse: collapse; border-radius: 8px; overflow: hidden; border: 1px solid var(--border); }
+    thead tr { background: var(--navy); color: white; }
+    thead th { padding: 10px 16px; text-align: left; font-size: .78rem; font-weight: 600; letter-spacing: .4px; }
+    tbody tr:nth-child(even) { background: #f8fafc; }
+    tbody td { padding: 9px 16px; font-size: .78rem; color: #374151; border-bottom: 1px solid var(--border); }
+    tbody tr:last-child td { border-bottom: none; }
+    .badge { display: inline-block; padding: 2px 9px; border-radius: 20px; font-size: .72rem; font-weight: 600; }
+    .bg{background:#e8f5e9;color:#2e7d32} .bb{background:#e3f2fd;color:#1565c0} .bo{background:#fff3e0;color:#e65100} .br{background:#fce4ec;color:#c62828}
+
+    /* FOOTER */
+    .doc-footer { background: var(--navy); color: rgba(255,255,255,.45); text-align: center; padding: 16px; font-size: .75rem; letter-spacing: .5px; }
+
+    /* PRINT */
+    @media print {
+      *, *::before, *::after {
+        -webkit-print-color-adjust: exact !important;
+        color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+      body { background: white; }
+      .print-panel { display: none !important; }
+      .doc  { padding: 0; gap: 0; max-width: 100%; }
+      .page { border-radius: 0; box-shadow: none; page-break-after: always; break-after: always; page-break-inside: avoid; break-inside: avoid; }
+      .page:last-child { page-break-after: auto; break-after: auto; }
+      .doc-footer { border-radius: 0; }
+      .pipeline-grid, .pipe-card, .stats-bar, .arch, .arch-row-2, .arch-row-3,
+      .two-col, .info-card, .steps-row, .step-cell, .ia-grid, .ia-card, table
+        { page-break-inside: avoid; break-inside: avoid; }
+      .doc-header  { padding: 18px 28px; }
+      .logo-box    { font-size: 1.7rem; padding: 6px 15px; }
+      .doc-header-text h1 { font-size: 1.2rem; }
+      .page-inner  { padding: 18px 26px 20px; }
+      .stat-num    { font-size: 2.2rem !important; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="print-panel">
+  <div class="print-label">Guardar como PDF:</div>
+  <div class="print-btns">
+    <button class="btn-print btn-portrait"  onclick="printPDF('portrait')">Vertical (A4)</button>
+    <button class="btn-print btn-landscape" onclick="printPDF('landscape')">Horizontal (A4)</button>
+  </div>
+</div>
+
+<div class="doc">
+
+  <!-- PÁGINA 1: PROBLEMA + PIPELINE -->
+  <div class="page">
+    <div class="doc-header">
+      <div class="logo-box">MP</div>
+      <div class="doc-header-text">
+        <h1>Sistema de Seguimiento de Licitaciones</h1>
+        <p>Esquema de funcionamiento &nbsp;&middot;&nbsp; Mercado Público Chile &nbsp;&middot;&nbsp; Plataforma de escritorio con procesamiento automatizado en 6 etapas</p>
+      </div>
+    </div>
+    <div class="page-inner">
+      <div class="sec-head">
+        <div class="sec-bar" style="background:var(--blue)"></div>
+        <h2>El problema que resuelve</h2>
+        <span class="sec-tag">45 – 60 min · sin intervención</span>
+      </div>
+      <div class="stats-bar">
+        <div class="stat-cell">
+          <div class="stat-num">~12.000</div>
+          <div class="stat-lbl">Licitaciones publicadas cada día en Mercado Público Chile</div>
+        </div>
+        <div class="stat-mid">
+          <div class="stat-arr"></div>
+          <div class="stat-lbl2">SISTEMA MP</div>
+        </div>
+        <div class="stat-cell right">
+          <div class="stat-num">~60</div>
+          <div class="stat-lbl">Oportunidades relevantes para MP, listas para revisar</div>
+        </div>
+      </div>
+      <div class="sec-head">
+        <div class="sec-bar" style="background:var(--teal)"></div>
+        <h2>Las 6 etapas del proceso</h2>
+        <span class="sec-tag">Ejecución secuencial y automática</span>
+      </div>
+      <div class="pipeline-grid">
+        <div class="pipe-card c0">
+          <div class="pipe-top"><div class="pipe-num">0</div><div class="pipe-title">Descarga automática</div></div>
+          <div class="pipe-desc">Conexión al portal de Mercado Público y descarga del listado completo del día en formato planilla.</div>
+          <div class="pipe-pill">~12.000 registros</div>
+        </div>
+        <div class="pipe-card c1">
+          <div class="pipe-top"><div class="pipe-num">1</div><div class="pipe-title">Auditoría de categorías</div></div>
+          <div class="pipe-desc">Verifica que las categorías del portal no hayan cambiado. Si aparece alguna nueva, genera una alerta para revisión.</div>
+          <div class="pipe-pill">Control de cambios</div>
+        </div>
+        <div class="pipe-card c2">
+          <div class="pipe-top"><div class="pipe-num">2</div><div class="pipe-title">Filtrado inteligente</div></div>
+          <div class="pipe-desc">Aplica reglas de negocio del archivo PIVOT_MAESTRO.xlsx: palabras clave, exclusiones y categorías prioritarias.</div>
+          <div class="pipe-pill">~50–100 relevantes</div>
+        </div>
+        <div class="pipe-card c3">
+          <div class="pipe-top"><div class="pipe-num">3</div><div class="pipe-title">Enriquecimiento API</div></div>
+          <div class="pipe-desc">Consulta la API oficial de Mercado Público para obtener la ficha técnica completa de cada licitación filtrada.</div>
+          <div class="pipe-pill">Ficha completa + montos</div>
+        </div>
+        <div class="pipe-card c4">
+          <div class="pipe-top"><div class="pipe-num">4</div><div class="pipe-title">Reporte ejecutivo</div></div>
+          <div class="pipe-desc">Genera el informe Excel con columnas relevantes para el equipo comercial, ordenado por urgencia de cierre.</div>
+          <div class="pipe-pill">Excel listo para usar</div>
+        </div>
+        <div class="pipe-card c5">
+          <div class="pipe-top"><div class="pipe-num">5</div><div class="pipe-title">Actualización incremental</div></div>
+          <div class="pipe-desc">Agrega solo las licitaciones nuevas al informe, actualizando plazos y preservando anotaciones manuales del equipo.</div>
+          <div class="pipe-pill">Sin perder trabajo manual</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PÁGINA 2: ARQUITECTURA -->
+  <div class="page">
+    <div class="page-inner">
+      <div class="sec-head">
+        <div class="sec-bar" style="background:var(--purple)"></div>
+        <h2>Arquitectura del sistema</h2>
+        <span class="sec-tag">Flujo de datos entre capas</span>
+      </div>
+      <div class="arch">
+        <div class="arch-stripe ext">
+          <div class="sec-bar" style="background:var(--blue);height:14px;width:3px"></div>
+          <span class="arch-stripe-lbl">Capa Externa — Internet / Fuentes de datos públicas</span>
+        </div>
+        <div class="arch-row-2">
+          <div class="arch-cell">
+            <h4 style="color:var(--blue)">Portal Web &nbsp;·&nbsp; Mercado Público Chile</h4>
+            <p>Publica diariamente el listado completo de todas las licitaciones del Estado en formato descargable. El sistema accede a esta fuente en la Etapa 0.</p>
+          </div>
+          <div class="arch-cell">
+            <h4 style="color:var(--blue)">API Oficial &nbsp;·&nbsp; api.mercadopublico.cl</h4>
+            <p>Servicio web oficial que entrega la ficha técnica completa de cada licitación bajo consulta individual. Utilizado en la Etapa 3 para enriquecer los datos filtrados.</p>
+          </div>
+        </div>
+        <div class="arch-conns">
+          <div class="arch-conn">
+            <div class="conn-line"></div><div class="conn-tip"></div>
+            <div class="conn-lbl">Descarga automática del listado diario (E0)</div>
+          </div>
+          <div class="arch-conn">
+            <div class="conn-line"></div><div class="conn-tip"></div>
+            <div class="conn-lbl">Consultas individuales de fichas técnicas (E3)</div>
+          </div>
+        </div>
+        <div class="arch-stripe app">
+          <div class="sec-bar" style="background:var(--amber);height:14px;width:3px"></div>
+          <span class="arch-stripe-lbl">Capa de Aplicación — PC del equipo MP (escritorio Windows)</span>
+        </div>
+        <div class="arch-app-inner">
+          <div class="arch-gui">
+            <h4>Interfaz Gráfica de Usuario (GUI)</h4>
+            <p>Ventana de escritorio: inicio del proceso, barra de progreso por etapa en tiempo real, consola de mensajes, acceso directo al informe final. Se abre con doble clic desde el escritorio.</p>
+          </div>
+          <div class="mini-pipe">
+            <div class="ms ms0">E0<span>Descarga</span></div>
+            <div class="ms ms1">E1<span>Auditoría</span></div>
+            <div class="ms ms2">E2<span>Filtrado</span></div>
+            <div class="ms ms3">E3<span>API</span></div>
+            <div class="ms ms4">E4<span>Reporte</span></div>
+            <div class="ms ms5">E5<span>Incremental</span></div>
+          </div>
+        </div>
+        <div class="arch-conns">
+          <div class="arch-conn">
+            <div class="conn-line"></div><div class="conn-tip"></div>
+            <div class="conn-lbl">Lee reglas de filtrado</div>
+          </div>
+          <div class="arch-conn">
+            <div class="conn-line"></div><div class="conn-tip"></div>
+            <div class="conn-lbl">Guarda planilla descargada del día</div>
+          </div>
+          <div class="arch-conn">
+            <div class="conn-line"></div><div class="conn-tip"></div>
+            <div class="conn-lbl">Escribe y actualiza el informe final</div>
+          </div>
+        </div>
+        <div class="arch-stripe data">
+          <div class="sec-bar" style="background:var(--teal);height:14px;width:3px"></div>
+          <span class="arch-stripe-lbl">Capa de Datos — Carpetas del equipo (disco local)</span>
+        </div>
+        <div class="arch-row-3">
+          <div class="arch-cell" style="border-bottom:none">
+            <h4 style="color:var(--teal2)">PIVOT_MAESTRO.xlsx</h4>
+            <p>Archivo de configuración de filtros: palabras clave, exclusiones y categorías prioritarias. Editable sin necesidad de tocar código.</p>
+          </div>
+          <div class="arch-cell" style="border-bottom:none">
+            <h4 style="color:var(--amber)">Carpeta INPUT</h4>
+            <p>Planilla diaria descargada de Mercado Público. Se renueva en cada ejecución con el listado actualizado del día.</p>
+          </div>
+          <div class="arch-cell" style="border-bottom:none">
+            <h4 style="color:var(--teal)">Carpeta OUTPUT</h4>
+            <p>Informe Excel final para el equipo. Actualizado de forma incremental preservando anotaciones y colores manuales entre ejecuciones.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PÁGINA 3: CONFIG + USO DIARIO -->
+  <div class="page">
+    <div class="page-inner">
+      <div class="sec-head">
+        <div class="sec-bar" style="background:var(--orange)"></div>
+        <h2>Configuración del sistema</h2>
+        <span class="sec-tag">Sin necesidad de programar</span>
+      </div>
+      <div class="two-col" style="margin-bottom:24px">
+        <div class="info-card">
+          <div class="info-head blue">Cómo se configuran los filtros — PIVOT_MAESTRO.xlsx</div>
+          <div class="info-row">
+            <div class="info-dot" style="background:var(--blue2)"></div>
+            <p><strong>Palabras clave de inclusión:</strong> Si la licitación menciona "fibra óptica", "telecomunicaciones" o "conectividad", se considera candidata.</p>
+          </div>
+          <div class="info-row">
+            <div class="info-dot" style="background:#e53935"></div>
+            <p><strong>Palabras clave de exclusión:</strong> Si menciona "alimentación escolar" o "útiles de oficina", se descarta automáticamente.</p>
+          </div>
+          <div class="info-row">
+            <div class="info-dot" style="background:var(--amber)"></div>
+            <p><strong>Categorías prioritarias:</strong> Ciertas categorías del portal pasan directamente sin revisión de palabras clave.</p>
+          </div>
+          <div class="info-row">
+            <div class="info-dot" style="background:var(--teal2)"></div>
+            <p><strong>Sin código:</strong> Cualquier persona del equipo puede actualizar las reglas editando el archivo Excel.</p>
+          </div>
+        </div>
+        <div class="info-card">
+          <div class="info-head green">Características que garantizan continuidad operativa</div>
+          <div class="info-row">
+            <div class="info-dot" style="background:var(--blue2)"></div>
+            <p><strong>Puntos de control (checkpoints):</strong> Si el proceso se interrumpe, retoma exactamente desde donde se detuvo sin repetir trabajo.</p>
+          </div>
+          <div class="info-row">
+            <div class="info-dot" style="background:var(--amber)"></div>
+            <p><strong>Límite de velocidad API:</strong> El sistema respeta el límite de la API pública (~10 consultas/minuto) sin intervención del usuario.</p>
+          </div>
+          <div class="info-row">
+            <div class="info-dot" style="background:var(--teal2)"></div>
+            <p><strong>Rotación de registros:</strong> Los archivos de operación se conservan 30 días y se eliminan automáticamente.</p>
+          </div>
+          <div class="info-row">
+            <div class="info-dot" style="background:#e53935"></div>
+            <p><strong>Verificación de entorno:</strong> Al iniciar, comprueba todas las dependencias y alerta al usuario si hay algún problema antes de comenzar.</p>
+          </div>
+        </div>
+      </div>
+      <div class="sec-head">
+        <div class="sec-bar" style="background:var(--green)"></div>
+        <h2>Cómo lo usa el equipo cada mañana</h2>
+        <span class="sec-tag">5 pasos · 1 clic real</span>
+      </div>
+      <div class="steps-row">
+        <div class="step-cell">
+          <div class="step-n">1</div>
+          <h4>Abrir la aplicación</h4>
+          <p>Doble clic sobre el icono MP_Licitaciones en el escritorio.</p>
+          <div class="step-time">5 segundos</div>
+        </div>
+        <div class="step-cell">
+          <div class="step-n">2</div>
+          <h4>Iniciar el proceso</h4>
+          <p>Clic en "Pipeline Completo". El sistema trabaja de forma autónoma.</p>
+          <div class="step-time">1 clic</div>
+        </div>
+        <div class="step-cell">
+          <div class="step-n">3</div>
+          <h4>Esperar resultados</h4>
+          <p>La barra de progreso muestra cada etapa en tiempo real en pantalla.</p>
+          <div class="step-time">45–60 minutos</div>
+        </div>
+        <div class="step-cell">
+          <div class="step-n">4</div>
+          <h4>Abrir el informe</h4>
+          <p>Clic en "Abrir Resultados". Se abre el Excel directamente.</p>
+          <div class="step-time">1 clic</div>
+        </div>
+        <div class="step-cell">
+          <div class="step-n">5</div>
+          <h4>Revisar y anotar</h4>
+          <p>El equipo marca y comenta. Las notas se preservan en la próxima ejecución.</p>
+          <div class="step-time">Trabajo del equipo</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PÁGINA 4: IA -->
+  <div class="page">
+    <div class="page-inner">
+      <div class="sec-head">
+        <div class="sec-bar" style="background:var(--purple)"></div>
+        <h2>Posibles incorporaciones de Inteligencia Artificial</h2>
+        <span class="sec-tag">Hoja de ruta por niveles</span>
+      </div>
+      <div class="ia-grid">
+        <div class="ia-card n1">
+          <div class="ia-lvl">Nivel 1 &nbsp;&middot;&nbsp; Impacto inmediato</div>
+          <h3>Resumen automático por licitación</h3>
+          <p>Un modelo de lenguaje genera automáticamente una columna adicional en el informe con un resumen ejecutivo de 2–3 oraciones por licitación. El equipo evalúa cada oportunidad en segundos sin necesidad de entrar al portal.</p>
+          <div class="ia-tags"><span class="ia-tag">1–2 semanas</span><span class="ia-tag">API OpenAI</span></div>
+        </div>
+        <div class="ia-card n2">
+          <div class="ia-lvl">Nivel 2 &nbsp;&middot;&nbsp; Recuperar oportunidades perdidas</div>
+          <h3>Clasificador semántico</h3>
+          <p>Un modelo entrenado con licitaciones históricas aprende a reconocer "relevante para MP" sin depender de palabras clave exactas. Licitaciones descartadas por usar términos distintos pasan por un segundo filtro inteligente.</p>
+          <div class="ia-tags"><span class="ia-tag">2–4 semanas</span><span class="ia-tag">Modelo local</span><span class="ia-tag">+2–5% recuperación</span></div>
+        </div>
+        <div class="ia-card n3">
+          <div class="ia-lvl">Nivel 3 &nbsp;&middot;&nbsp; Priorización estratégica</div>
+          <h3>Scoring de oportunidades</h3>
+          <p>Un agente evalúa cada licitación según criterios de negocio de MP: historial de proyectos ganados, presencia regional y plazo disponible. El informe sale ordenado de mayor a menor puntuación.</p>
+          <div class="ia-tags"><span class="ia-tag">4–6 semanas</span><span class="ia-tag">Requiere histórico</span><span class="ia-tag">Alta visibilidad</span></div>
+        </div>
+        <div class="ia-card n4">
+          <div class="ia-lvl">Nivel 4 &nbsp;&middot;&nbsp; Autonomía total</div>
+          <h3>Agente autónomo de monitoreo</h3>
+          <p>El sistema ejecuta el pipeline diariamente de forma programada, detecta licitaciones de alta relevancia y envía alertas por correo o Teams. Aprende de las decisiones del equipo para mejorar sus recomendaciones.</p>
+          <div class="ia-tags"><span class="ia-tag">2–3 meses</span><span class="ia-tag">Azure / Teams</span><span class="ia-tag">Full automation</span></div>
+        </div>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>Opción</th>
+            <th>Complejidad</th>
+            <th>Beneficio principal</th>
+            <th>Tiempo de implementación</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td><strong>Resumen automático</strong></td><td><span class="badge bg">Baja</span></td><td>Ahorra tiempo de lectura por ficha</td><td>1–2 semanas</td></tr>
+          <tr><td><strong>Clasificador semántico</strong></td><td><span class="badge bb">Baja–Media</span></td><td>Recupera licitaciones relevantes perdidas</td><td>2–4 semanas</td></tr>
+          <tr><td><strong>Scoring de oportunidades</strong></td><td><span class="badge bo">Media</span></td><td>Equipo se enfoca en las mejores opciones</td><td>4–6 semanas</td></tr>
+          <tr><td><strong>Agente autónomo</strong></td><td><span class="badge br">Alta</span></td><td>Proceso completamente sin intervención</td><td>2–3 meses</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="doc-footer">Sebastian Chirino Chile &nbsp;&middot;&nbsp; Sistema de Licitaciones v6.0 &nbsp;&middot;&nbsp; Mayo 2026</div>
+  </div>
+
+</div>
+
+<script>
+  function printPDF(orientation) {
+    document.getElementById('print-style-override').textContent =
+      '@page { size: A4 ' + orientation + '; margin: 12mm 13mm; }';
+    window.print();
+  }
+</script>
+</body>
+</html>

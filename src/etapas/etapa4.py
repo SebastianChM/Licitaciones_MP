@@ -1,31 +1,35 @@
-__version__ = "3.0.0"
+"""Etapa 4 — genera el reporte ejecutivo Excel con formato profesional MP."""
+from importlib.metadata import version as _pkg_version
+
+__version__ = _pkg_version("licitaciones-mp")
 
 import re
-import pytz
-import pandas as pd
-from pathlib import Path
-from typing import Tuple
 from datetime import datetime
-from openpyxl import load_workbook
-from openpyxl.styles import PatternFill, Font, Alignment
-from openpyxl.formatting.rule import FormulaRule
-from openpyxl.utils import get_column_letter
-from utils import Config, obtener_timestamp
-from utils.http import HTTPClient
-from core.contracts import BaseStage, StageResult
+from pathlib import Path
+from typing import Any, ClassVar
+
+import pandas as pd
+import pytz
+
 from core.context import PipelineContext
+from core.contracts import BaseStage, StageResult
+from utils import Config, obtener_timestamp
+from utils.excel_formatter import guardar_formateado_reporte
+from utils.http import HTTPClient
+
 
 class GeneradorReporte(BaseStage):
+    """Genera el reporte ejecutivo Excel con formato MP, conversión de divisas y separación por vigencia."""
     REGEX_NUMERO = r'[^\d.]'
     
-    COLUMNAS = ["LINK", "Numero Adquisición", "Nombre", "Descripción", "Región", "Cliente (Organismo)",
+    COLUMNAS: ClassVar[list[str]] = ["LINK", "Numero Adquisición", "Nombre", "Descripción", "Región", "Cliente (Organismo)",
                 "Fecha Publicación", "Hora Publicación", "Fecha Inicio Preguntas", "Hora Inicio Preguntas",
                 "Fecha Cierre Preguntas", "Hora Cierre Preguntas", "Fecha Apertura", "Hora Apertura",
                 "Fecha Cierre Licitación", "Hora Cierre Licitación", "Fecha Adjudicación", "Hora Adjudicación",
                 "Monto Estimado (CLP)", "Días para cierre", "ONU", "Nivel 1", "Nivel 2", "Nivel 3",
-                "Genérico", "Trazabilidad"]
+                "Genérico", "Trazabilidad", "Nivel Confianza"]
     
-    SINONIMOS = {
+    SINONIMOS: ClassVar[dict[str, list[str]]] = {
         "Numero Adquisición": ["Numero Adquisición", "Código Externo", "CodigoExterno"],
         "Nombre": ["Nombre Adquisición", "Nombre Licitación", "Nombre", "API_Nombre"],
         "Descripción": ["Descripción", "API_Descripcion"],
@@ -45,10 +49,11 @@ class GeneradorReporte(BaseStage):
         "Hora Adjudicación": ["API_FechaAdjudicacion"],
         "Monto Estimado (CLP)": ["Monto", "API_Monto", "MontoEstimado"],
         "ONU": ["Código ONU", "CodigoProducto"],
-        "Trazabilidad": ["Trazabilidad Filtro", "Trazabilidad", "Motivo Inclusión"]
+        "Trazabilidad": ["Trazabilidad Filtro", "Trazabilidad", "Motivo Inclusión"],
+        "Nivel Confianza": ["Nivel Confianza"]
     }
     
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self.valor_utm = 0.0
         self.valor_usd = 1000.0
@@ -76,20 +81,20 @@ class GeneradorReporte(BaseStage):
         try:
             pd.read_excel(archivo_entrada, engine='openpyxl', nrows=1)
         except Exception as e:
-            raise ValueError(f"El archivo base proporcionado no es un Excel válido o está corrupto: {str(e)}")
+            raise ValueError(f"El archivo base proporcionado no es un Excel válido o está corrupto: {e!s}") from e
             
         return True
-    def run(self, context: PipelineContext) -> StageResult:
-        self.bind(context)
+    def _execute(self, context: PipelineContext) -> StageResult:
+        """Genera el reporte Excel a partir del archivo enriquecido de etapa 3."""
         self.http = HTTPClient(self.logger, max_retries=2, timeout=10)
         self.logger.section("ETAPA 4 - GENERACIÓN DE REPORTE EJECUTIVO", 80)
         self.logger.info(f"[>>] Iniciando generación - v{__version__} | RunID: {context.run_id}")
         
         try:
             self.valor_utm = self.config.ETAPA4_VALOR_UTM
+            self.valor_usd = self.config.ETAPA4_VALOR_USD_CLP
             self.dias_gracia = self.config.ETAPA4_DIAS_GRACIA_HISTORICO
-            self.validate_inputs(context)
-            
+
             self._actualizar_tasas()
             archivo = context.get_artifact('etapa3_output') or self._obtener_archivo(context)
             df_raw = pd.read_excel(archivo, engine='openpyxl')
@@ -126,10 +131,13 @@ class GeneradorReporte(BaseStage):
         except Exception as e:
             self.logger.error(f"[X] Error crítico Etapa 4: {e}", exc_info=True)
             return StageResult(success=False, stage_name=self.name, error_message=str(e), metrics_produced=self.stats)
-        finally:
-            self.logger.finalize()
+
+    def _cleanup(self) -> None:
+        """Cierra el cliente HTTP al finalizar la etapa."""
+        if hasattr(self, 'http') and self.http:
+            self.http.close()
     
-    def _actualizar_tasas(self):
+    def _actualizar_tasas(self) -> None:
         self.logger.subsection("Actualizando tasas")
         try:
             utm = self._obtener_utm()
@@ -151,13 +159,36 @@ class GeneradorReporte(BaseStage):
         apikey = self.config.cmf_api_key
         if not apikey:
             raise ValueError("CMF API key no configurada (LICIT_CMF_API_KEY). No se puede actualizar UTM de la API.")
-        r = self.http.get("https://api.cmfchile.cl/api-sbifv3/recursos_api/utm",
-                        params={'apikey': apikey, 'formato': 'json'})
-        return float(r.json().get('Valor', 0))
-    
+        url = getattr(self.config, 'cmf_utm_url', "https://api.cmfchile.cl/api-sbifv3/recursos_api/utm")
+        r = self.http.get(url, params={'apikey': apikey, 'formato': 'json'})
+        try:
+            payload = r.json()
+        except ValueError as e:
+            raise ValueError(f"Respuesta CMF no es JSON válido: {e}") from e
+        # CMF puede devolver {'Valor': '68.785,00'} o {'UTMs':[{'Valor':...}]}
+        valor_raw = payload.get('Valor')
+        if valor_raw is None:
+            utms = payload.get('UTMs') or []
+            if utms and isinstance(utms, list) and isinstance(utms[0], dict):
+                valor_raw = utms[0].get('Valor')
+        if valor_raw is None or valor_raw == '':
+            raise ValueError(f"Estructura inesperada en respuesta CMF (claves: {list(payload.keys())})")
+        # CMF usa coma decimal y punto de miles → normalizar
+        valor_str = str(valor_raw).replace('.', '').replace(',', '.') if isinstance(valor_raw, str) else str(valor_raw)
+        return float(valor_str)
+
     def _obtener_usd(self) -> float:
-        r = self.http.get("https://api.exchangerate.host/latest", params={'base': 'USD', 'symbols': 'CLP'})
-        return float(r.json()['rates']['CLP'])
+        # frankfurter.app: gratuito, sin API key, mantenido activamente
+        url = getattr(self.config, 'fx_provider_url', "https://api.frankfurter.app/latest")
+        r = self.http.get(url, params={'from': 'USD', 'to': 'CLP'})
+        try:
+            payload = r.json()
+        except ValueError as e:
+            raise ValueError(f"Respuesta FX no es JSON válido: {e}") from e
+        rates = payload.get('rates') if isinstance(payload, dict) else None
+        if not isinstance(rates, dict) or 'CLP' not in rates:
+            raise ValueError(f"Estructura inesperada en respuesta FX (claves: {list(payload.keys()) if isinstance(payload, dict) else type(payload).__name__})")
+        return float(rates['CLP'])
     
     def _obtener_archivo(self, context: PipelineContext) -> Path:
         archivos = list(context.config.ENRIQUECIDO_DIR.glob("Licitaciones_Enriquecidas_*.xlsx"))
@@ -173,7 +204,7 @@ class GeneradorReporte(BaseStage):
         for col in self.COLUMNAS:
             if col == "LINK":
                 data[col] = df_raw['Numero Adquisición'].apply(
-                    lambda x: f"https://www.mercadopublico.cl/Procurement/Modules/RFB/DetailsAcquisition.aspx?idlicitacion={str(x)}"
+                    lambda x: f"https://www.mercadopublico.cl/Procurement/Modules/RFB/DetailsAcquisition.aspx?idlicitacion={x!s}"
                 )
                 continue
             
@@ -193,7 +224,7 @@ class GeneradorReporte(BaseStage):
             
             col_fuente = next((c for c in self.SINONIMOS.get(col, [col]) if c in df_raw.columns), None)
             if col == "Numero Adquisición" and not col_fuente:
-                raise ValueError(f"Falta columna base mandatoria para el reporteutivo: {self.SINONIMOS['Numero Adquisición']}")
+                raise ValueError(f"Falta columna base mandatoria para el reporte ejecutivo: {self.SINONIMOS['Numero Adquisición']}")
                 
             data[col] = df_raw[col_fuente].astype(str) if col_fuente else ""
         
@@ -204,7 +235,7 @@ class GeneradorReporte(BaseStage):
         self.logger.info(f"[OK] Reporte preparado: {len(df)} filas")
         return df
     
-    def _extraer_hora(self, timestamp) -> str:
+    def _extraer_hora(self, timestamp: Any) -> str:
         try:
             if pd.isna(timestamp) or str(timestamp) in ['', 'nan', 'None']:
                 return ""
@@ -215,13 +246,30 @@ class GeneradorReporte(BaseStage):
         except Exception:
             return ""
     
+    @staticmethod
+    def _campo(row: pd.Series, *keys: str) -> Any:
+        """Devuelve el primer valor no-nulo y no-NaN de las claves dadas."""
+        for k in keys:
+            v = row.get(k)
+            try:
+                if v is not None and not pd.isna(v):
+                    return v
+            except (TypeError, ValueError):
+                if v is not None:
+                    return v
+        return None
+
     def _convertir_monto(self, row: pd.Series) -> int:
         try:
-            moneda = str(row.get('Moneda', '')).upper().strip()
+            # Buscar moneda: primero campo directo, luego columna API (producida por Etapa 3)
+            # Nota: pd.NaN es truthy en Python → no usar `or` directamente con valores de Series
+            moneda = str(self._campo(row, 'Moneda', 'API_Moneda') or '').upper().strip()
+            # Buscar monto: primero campo directo, luego columna API
+            monto_raw = str(self._campo(row, 'Monto', 'API_Monto') or '0')
 
             if moneda in ['CLP', 'PESO']:
                 # Strip ALL non-digit chars — handles thousands separators like '5.000.000'
-                monto_str = re.sub(r'[^\d]', '', str(row.get('Monto', '0')))
+                monto_str = re.sub(r'[^\d]', '', monto_raw)
                 return int(monto_str) if monto_str else 0
 
             if 'UTM' in moneda:
@@ -230,14 +278,22 @@ class GeneradorReporte(BaseStage):
                 if nums:
                     self.stats['utm'] += 1
                     return int(float(nums[0]) * self.valor_utm)
-            
+                # Sin número en Tipo Adquisición: monto indeterminado, no es error de conversión
+                return 0
+
             if moneda in ['USD', 'DOLAR']:
-                monto = float(re.sub(self.REGEX_NUMERO, '', str(row.get('Monto', '0'))))
+                monto_str = re.sub(self.REGEX_NUMERO, '', monto_raw)
+                if not monto_str:
+                    return 0
+                monto = float(monto_str)
                 if monto > 0:
                     self.stats['usd'] += 1
                     return int(monto * self.valor_usd)
-            
-            return int(float(re.sub(self.REGEX_NUMERO, '', str(row.get('Monto', '0')))))
+
+            # Fallback genérico: strip de TODOS los no-dígitos (igual que CLP) para soportar
+            # formato chileno de miles ("2.000.000") sin generar ValueError en float()
+            monto_str = re.sub(r'[^\d]', '', monto_raw)
+            return int(monto_str) if monto_str else 0
         except Exception:
             self.stats['errores'] += 1
             return 0
@@ -254,7 +310,7 @@ class GeneradorReporte(BaseStage):
         except Exception:
             return 999
     
-    def _separar(self, df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame]:
+    def _separar(self, df: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
         self.logger.subsection("Separando vigentes/vencidas")
         vigentes = df[(df['Días para cierre'] >= 0) | (df['Días para cierre'] == 999)].copy()
         vencidas = df[(df['Días para cierre'] < 0) & (df['Días para cierre'] >= -self.dias_gracia)].copy()
@@ -271,133 +327,19 @@ class GeneradorReporte(BaseStage):
         ts = obtener_timestamp()
         
         ruta_principal = self.config.PRESENTACION_ORIGINAL_DIR / f"Reporte_Licitaciones_{ts}.xlsx"
-        self._guardar_formateado(df_vigentes, ruta_principal, "Licitaciones")
+        guardar_formateado_reporte(df_vigentes, ruta_principal, "Licitaciones")
         self.logger.info(f"[OK] {ruta_principal.name}")
         rutas_generadas = [ruta_principal]
         
         if len(df_vencidas) > 0:
             ruta_historico = self.config.HISTORICO_DIR / f"Historico_Licitaciones_{ts}.xlsx"
-            self._guardar_formateado(df_vencidas, ruta_historico, "Histórico")
+            guardar_formateado_reporte(df_vencidas, ruta_historico, "Histórico")
             self.logger.info(f"📦 {ruta_historico.name}")
             rutas_generadas.append(ruta_historico)
             
         return rutas_generadas
     
-    def _guardar_formateado(self, df: pd.DataFrame, ruta: Path, hoja: str):
-        """Guarda Excel con formato mejorado: anchos automáticos, links clickeables, colores"""
-        df.to_excel(ruta, sheet_name=hoja, index=False, engine='openpyxl')
-        wb = load_workbook(ruta)
-        ws = wb[hoja]
-        
-        # === 1. FORMATO DE ENCABEZADOS ===
-        header_fill = PatternFill(start_color="0066CC", end_color="0066CC", fill_type="solid")
-        header_font = Font(bold=True, color="FFFFFF", size=11)
-        header_alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
-        
-        for col_idx in range(1, len(df.columns) + 1):
-            cell = ws.cell(row=1, column=col_idx)
-            cell.fill = header_fill
-            cell.font = header_font
-            cell.alignment = header_alignment
-        
-        # === 2. AJUSTAR ANCHOS DE COLUMNAS AUTOMÁTICAMENTE ===
-        anchos_columnas = {
-            "LINK": 12,
-            "Numero Adquisición": 18,
-            "Nombre": 50,
-            "Descripción": 60,
-            "Región": 30,
-            "Cliente (Organismo)": 40,
-            "Fecha Publicación": 20,
-            "Hora Publicación": 12,
-            "Fecha Inicio Preguntas": 20,
-            "Hora Inicio Preguntas": 12,
-            "Fecha Cierre Preguntas": 20,
-            "Hora Cierre Preguntas": 12,
-            "Fecha Apertura": 20,
-            "Hora Apertura": 12,
-            "Fecha Cierre Licitación": 20,
-            "Hora Cierre Licitación": 12,
-            "Fecha Adjudicación": 20,
-            "Hora Adjudicación": 12,
-            "Monto Estimado (CLP)": 18,
-            "Días para cierre": 12,
-            "ONU": 12,
-            "Nivel 1": 50,
-            "Nivel 2": 45,
-            "Nivel 3": 45,
-            "Genérico": 40,
-            "Trazabilidad": 15
-        }
-        
-        for col_idx, col_name in enumerate(df.columns, 1):
-            letra = get_column_letter(col_idx)
-            ancho_definido = anchos_columnas.get(col_name, 15)
-            ws.column_dimensions[letra].width = ancho_definido
-        
-        # === 3. CONVERTIR COLUMNA LINK EN HIPERVÍNCULOS CLICKEABLES ===
-        if "LINK" in df.columns:
-            col_link_idx = df.columns.get_loc("LINK") + 1
-            for row_idx in range(2, len(df) + 2):  # Desde fila 2 (después del header)
-                cell = ws.cell(row=row_idx, column=col_link_idx)
-                url = cell.value
-                if url and url.startswith("http"):
-                    cell.hyperlink = url
-                    cell.value = "Ver Licitación"
-                    cell.font = Font(color="0000FF", underline="single", size=10)
-                    cell.alignment = Alignment(horizontal='center', vertical='center')
-        
-        # === 4. ALINEACIÓN Y WRAP TEXT ===
-        for row in ws.iter_rows(min_row=2, max_row=len(df)+1, min_col=1, max_col=len(df.columns)):
-            for idx, cell in enumerate(row):
-                col_name = df.columns[idx]
-                
-                # Wrap text para columnas largas
-                if col_name in ["Nombre", "Descripción", "Nivel 1", "Nivel 2", "Nivel 3", "Cliente (Organismo)"]:
-                    cell.alignment = Alignment(wrap_text=True, vertical='top')
-                
-                # Centrar columnas cortas
-                elif col_name in ["LINK", "Dias para cierre", "ONU", "Hora Publicación", 
-                                  "Hora Inicio Preguntas", "Hora Cierre Preguntas", 
-                                  "Hora Apertura", "Hora Cierre Licitación", "Hora Adjudicación"]:
-                    cell.alignment = Alignment(horizontal='center', vertical='center')
-                
-                # Formato número para monto
-                elif col_name == "Monto Estimado (CLP)":
-                    cell.number_format = '#,##0'
-                    cell.alignment = Alignment(horizontal='right', vertical='center')
-        
-        # === 5. FORMATO CONDICIONAL PARA DÍAS DE CIERRE ===
-        col_dias = self.COLUMNAS.index("Días para cierre") + 1
-        letra_dias = get_column_letter(col_dias)
-        
-        # Rojo: menos de 7 días
-        ws.conditional_formatting.add(f"{letra_dias}2:{letra_dias}{len(df)+1}",
-            FormulaRule(formula=[f'{letra_dias}2<7'], stopIfTrue=True,
-                       fill=PatternFill(start_color="FF0000", end_color="FF0000", fill_type="solid"),
-                       font=Font(color="FFFFFF", bold=True)))
-        
-        # Amarillo: entre 7 y 14 días
-        ws.conditional_formatting.add(f"{letra_dias}2:{letra_dias}{len(df)+1}",
-            FormulaRule(formula=[f'AND({letra_dias}2>=7, {letra_dias}2<=14)'], stopIfTrue=True,
-                       fill=PatternFill(start_color="FFFF00", end_color="FFFF00", fill_type="solid")))
-        
-        # Verde: más de 14 días
-        ws.conditional_formatting.add(f"{letra_dias}2:{letra_dias}{len(df)+1}",
-            FormulaRule(formula=[f'{letra_dias}2>14'], stopIfTrue=True,
-                       fill=PatternFill(start_color="00AA00", end_color="00AA00", fill_type="solid")))
-        
-        # === 6. CONGELAR PRIMERA FILA (ENCABEZADOS) ===
-        ws.freeze_panes = "A2"
-        
-        # === 7. ALTURA DE FILAS ===
-        ws.row_dimensions[1].height = 30  # Header más alto
-        for row_idx in range(2, len(df) + 2):
-            ws.row_dimensions[row_idx].height = 60  # Filas con más espacio para wrap text
-        
-        wb.save(ruta)
-    
-    def _imprimir_resumen(self):
+    def _imprimir_resumen(self) -> None:
         s = self.stats
         self.logger.info(f"""
 ╔══════════════════════════════════════════════════════════════╗
@@ -419,7 +361,9 @@ class GeneradorReporte(BaseStage):
    - USD:        ${self.valor_usd:,.0f}
 """)
 
-def main():
+def main() -> int | None:
+    from utils.logger import configurar_consola_utf8
+    configurar_consola_utf8()
     try:
         context = PipelineContext(config=Config())
         context.flags['allow_fallback'] = True
