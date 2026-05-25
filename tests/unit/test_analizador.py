@@ -6,12 +6,11 @@ ni escriben archivos. El logger y config se mockean.
 Ejecutar con: pytest tests/unit/test_analizador.py -v
 """
 
-import pytest
-import pandas as pd
 from unittest.mock import MagicMock
 
-from utils.analizador_incremental import AnalizadorIncremental
+import pandas as pd
 
+from utils.analizador_incremental import AnalizadorIncremental
 
 # ---------------------------------------------------------------------------
 # Helper de instanciación sin I/O
@@ -400,7 +399,8 @@ class TestEncontrarReporteMasReciente:
         nuevo = tmp_path / "Reporte_Licitaciones_2025-03-01.xlsx"
         viejo.touch()
         nuevo.touch()
-        import time; time.sleep(0.01)
+        import time
+        time.sleep(0.01)
         nuevo.write_bytes(b"x")  # Actualiza mtime
         result = az._encontrar_reporte_mas_reciente()
         assert result == nuevo

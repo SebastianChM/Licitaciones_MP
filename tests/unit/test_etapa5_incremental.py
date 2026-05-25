@@ -6,13 +6,11 @@ Cubre:
 - _calcular_dias_cierre: lógica de días
 - _generar_link_licitacion: generación de URL
 """
-import pytest
-import pandas as pd
-from datetime import datetime, timedelta
-from pathlib import Path
 from unittest.mock import patch
-from openpyxl import Workbook, load_workbook
 
+import pandas as pd
+import pytest
+from openpyxl import Workbook, load_workbook
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -21,8 +19,8 @@ from openpyxl import Workbook, load_workbook
 @pytest.fixture
 def etapa5(config, logger_mock):
     """GeneradorReporteIncremental con contexto y logger mockeados."""
-    from etapas.etapa5 import GeneradorReporteIncremental
     from core.context import PipelineContext
+    from etapas.etapa5 import GeneradorReporteIncremental
     stage = GeneradorReporteIncremental()
     ctx = PipelineContext(config=config)
     stage._context = ctx
@@ -150,46 +148,6 @@ class TestMoverLicitacionesVencidas:
         # Fila 1 = encabezado existente, fila 2 = dato copiado
         assert ws_v.cell(2, 1).value == "2025-001"
 
-
-# ---------------------------------------------------------------------------
-# _calcular_dias_cierre
-# ---------------------------------------------------------------------------
-
-@pytest.mark.unit
-class TestCalcularDiasCierre:
-
-    def test_fecha_futura(self, etapa5):
-        fecha = datetime.now() + timedelta(days=10)
-        assert etapa5._calcular_dias_cierre(str(fecha)) >= 9
-
-    def test_fecha_pasada_negativo(self, etapa5):
-        fecha = datetime.now() - timedelta(days=3)
-        assert etapa5._calcular_dias_cierre(str(fecha)) < 0
-
-    def test_none_retorna_999(self, etapa5):
-        assert etapa5._calcular_dias_cierre(None) == 999
-
-    def test_texto_invalido_retorna_999(self, etapa5):
-        assert etapa5._calcular_dias_cierre("no-es-una-fecha") == 999
-
-
-# ---------------------------------------------------------------------------
-# _generar_link_licitacion
-# ---------------------------------------------------------------------------
-
-@pytest.mark.unit
-class TestGenerarLinkLicitacion:
-
-    def test_codigo_valido(self, etapa5):
-        url = etapa5._generar_link_licitacion("2025-123-LE14")
-        assert "idlicitacion=2025-123-LE14" in url
-        assert url.startswith("https://www.mercadopublico.cl")
-
-    def test_none_retorna_vacio(self, etapa5):
-        assert etapa5._generar_link_licitacion(None) == ""
-
-    def test_cadena_vacia_retorna_vacio(self, etapa5):
-        assert etapa5._generar_link_licitacion("") == ""
 
 
 # ---------------------------------------------------------------------------

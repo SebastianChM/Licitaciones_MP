@@ -10,16 +10,16 @@ Cubre las ramas no alcanzadas por test_etapa4_run.py y test_etapa4_convertir_mon
 - _imprimir_resumen
 - main()
 """
-import pytest
-import pandas as pd
 from datetime import datetime, timedelta
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
-from etapas.etapa4 import GeneradorReporte
+import pandas as pd
+import pytest
+
 from core.context import PipelineContext
+from etapas.etapa4 import GeneradorReporte
 from utils.config import Config
-
 
 # ---------------------------------------------------------------------------
 # Fixtures / helpers
@@ -168,7 +168,8 @@ class TestObtenerArchivo:
         f2 = enriq / "Licitaciones_Enriquecidas_20250201_000000.xlsx"
         f1.touch()
         f2.touch()
-        import os, time as t
+        import os
+        import time as t
         os.utime(f1, (t.time() - 100, t.time() - 100))
         os.utime(f2, (t.time(), t.time()))
 
@@ -233,7 +234,8 @@ class TestRunRutas:
         ruta2 = tmp_path / "HIST" / "Historico.xlsx"
         ruta1.parent.mkdir(parents=True, exist_ok=True)
         ruta2.parent.mkdir(parents=True, exist_ok=True)
-        ruta1.touch(); ruta2.touch()
+        ruta1.touch()
+        ruta2.touch()
 
         stage = GeneradorReporte()
         with patch.object(stage, '_actualizar_tasas'), \

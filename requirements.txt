@@ -13,6 +13,12 @@ requests>=2.31.0
 # Timezones
 pytz>=2024.1
 
+# Generación de iconos (acceso directo de escritorio)
+Pillow>=10.0.0
+
+# Interfaz gráfica profesional
+customtkinter>=5.2.0
+
 # Testing
 pytest>=7.4.0
 pytest-cov>=4.1.0

@@ -7,13 +7,13 @@ _separar.  Aquí se cubren:
 - _preparar_reporte: columna mandatoria faltante genera error
 - _guardar_formateado: Excel escrito con hoja y links correctos
 """
-import pytest
-import pandas as pd
 from datetime import datetime, timedelta
 from pathlib import Path
-from unittest.mock import patch, MagicMock
-from openpyxl import Workbook, load_workbook
+from unittest.mock import MagicMock, patch
 
+import pandas as pd
+import pytest
+from openpyxl import load_workbook
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -102,8 +102,8 @@ def _make_config(tmp_path: Path):
 
 
 def _stage(tmp_path: Path, logger_mock):
-    from etapas.etapa4 import GeneradorReporte
     from core.context import PipelineContext
+    from etapas.etapa4 import GeneradorReporte
     config = _make_config(tmp_path)
     stage = GeneradorReporte()
     stage._context = PipelineContext(config=config)
@@ -171,7 +171,6 @@ class TestRun:
 
     def _contexto_con_archivo(self, tmp_path, fecha_cierre=None):
         from core.context import PipelineContext
-        from utils.config import Config
         config = _make_config(tmp_path)
         ctx = PipelineContext(config=config)
         ctx.flags["allow_fallback"] = False
@@ -197,8 +196,8 @@ class TestRun:
         assert result.files_produced[0].exists()
 
     def test_run_retorna_failure_sin_input(self, tmp_path, logger_mock):
-        from etapas.etapa4 import GeneradorReporte
         from core.context import PipelineContext
+        from etapas.etapa4 import GeneradorReporte
         config = _make_config(tmp_path)
         ctx = PipelineContext(config=config)
         ctx.flags["allow_fallback"] = False  # strict: no artifact → failure
@@ -225,7 +224,7 @@ class TestRun:
     def test_run_con_vigente_y_vencida_produce_dos_archivos(self, tmp_path, logger_mock):
         from core.context import PipelineContext
         config = _make_config(tmp_path)
-        config.model_config  # validate config is ok
+        _ = config.model_config  # validate config is ok
         ctx = PipelineContext(config=config)
         ctx.flags["allow_fallback"] = False
 
@@ -264,8 +263,8 @@ class TestRun:
 class TestPrepararReporte:
 
     def _stage_simple(self, tmp_path):
-        from etapas.etapa4 import GeneradorReporte
         from core.context import PipelineContext
+        from etapas.etapa4 import GeneradorReporte
         config = _make_config(tmp_path)
         stage = GeneradorReporte()
         stage._context = PipelineContext(config=config)
@@ -312,7 +311,7 @@ class TestPrepararReporte:
 
 
 # ---------------------------------------------------------------------------
-# Tests: _guardar_formateado
+# Tests: guardar_formateado_reporte (shared Excel formatter)
 # ---------------------------------------------------------------------------
 
 @pytest.mark.unit
@@ -320,8 +319,7 @@ class TestGuardarFormateado:
 
     def test_archivo_creado_con_hoja_correcta(self, tmp_path):
         from etapas.etapa4 import GeneradorReporte
-        stage = GeneradorReporte()
-        stage._logger = MagicMock()
+        from utils.excel_formatter import guardar_formateado_reporte
 
         df = pd.DataFrame({col: ["val"] for col in GeneradorReporte.COLUMNAS})
         df["LINK"] = ["https://www.mercadopublico.cl/test"]
@@ -329,7 +327,7 @@ class TestGuardarFormateado:
         df["Monto Estimado (CLP)"] = [5_000_000]
 
         ruta = tmp_path / "test_reporte.xlsx"
-        stage._guardar_formateado(df, ruta, "Licitaciones")
+        guardar_formateado_reporte(df, ruta, "Licitaciones")
 
         assert ruta.exists()
         wb = load_workbook(ruta)
@@ -337,8 +335,7 @@ class TestGuardarFormateado:
 
     def test_headers_escritos_correctamente(self, tmp_path):
         from etapas.etapa4 import GeneradorReporte
-        stage = GeneradorReporte()
-        stage._logger = MagicMock()
+        from utils.excel_formatter import guardar_formateado_reporte
 
         df = pd.DataFrame({col: ["val"] for col in GeneradorReporte.COLUMNAS})
         df["LINK"] = ["https://www.mercadopublico.cl/test"]
@@ -346,7 +343,7 @@ class TestGuardarFormateado:
         df["Monto Estimado (CLP)"] = [5_000_000]
 
         ruta = tmp_path / "test_headers.xlsx"
-        stage._guardar_formateado(df, ruta, "Licitaciones")
+        guardar_formateado_reporte(df, ruta, "Licitaciones")
 
         wb = load_workbook(ruta)
         ws = wb["Licitaciones"]
@@ -356,8 +353,7 @@ class TestGuardarFormateado:
 
     def test_hyperlink_generado_en_columna_link(self, tmp_path):
         from etapas.etapa4 import GeneradorReporte
-        stage = GeneradorReporte()
-        stage._logger = MagicMock()
+        from utils.excel_formatter import guardar_formateado_reporte
 
         url = "https://www.mercadopublico.cl/test123"
         df = pd.DataFrame({col: ["val"] for col in GeneradorReporte.COLUMNAS})
@@ -366,7 +362,7 @@ class TestGuardarFormateado:
         df["Monto Estimado (CLP)"] = [5_000_000]
 
         ruta = tmp_path / "test_links.xlsx"
-        stage._guardar_formateado(df, ruta, "Licitaciones")
+        guardar_formateado_reporte(df, ruta, "Licitaciones")
 
         wb = load_workbook(ruta)
         ws = wb["Licitaciones"]

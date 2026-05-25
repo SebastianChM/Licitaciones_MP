@@ -1,59 +1,45 @@
-"""
-Pipeline Licitaciones MP
-Orquestador que ejecuta las etapas del procesamiento de licitaciones.
+"""Orquestador del pipeline: ejecuta las 6 etapas de procesamiento de licitaciones."""
 
-Version: 5.0.0
-Autor: Sebastian Chirino
-"""
+from importlib.metadata import version as _pkg_version
 
-__version__ = "5.0.0"
+__version__ = _pkg_version("licitaciones-mp")
 
+import argparse
 import sys
-from pathlib import Path
-
-# Asegurar que src/ está en el path al ejecutar desde la raíz del proyecto
-_SRC = Path(__file__).parent / "src"
-if str(_SRC) not in sys.path:
-    sys.path.insert(0, str(_SRC))
-
 from datetime import datetime
-from typing import Dict, Any, Optional
+from pathlib import Path
+from typing import Any, ClassVar
 
 from core.context import PipelineContext
-from core.contracts import StageResult
-
-from utils import Config, ProjectLogger
-from utils.alerts import AlertManager, ConsoleAlertSink, FileAlertSink
-from utils.observability import ObservabilityRules, RunSummaryReporter
+from core.contracts import BaseStage, StageResult
 from etapas.etapa0 import Etapa0Descarga
 from etapas.etapa1 import AuditorTaxonomia
 from etapas.etapa2 import FiltradorLicitaciones
 from etapas.etapa3 import EnriquecedorAPI
 from etapas.etapa4 import GeneradorReporte
 from etapas.etapa5 import GeneradorReporteIncremental
+from utils import Config, ProjectLogger
+from utils.alerts import AlertManager, ConsoleAlertSink, FileAlertSink
+from utils.logger import cleanup_old_logs, configurar_consola_utf8
+from utils.observability import ObservabilityRules, RunSummaryReporter
 
 
 class PipelineLicitaciones:
-    """
-    Orquestador del pipeline completo de licitaciones.
+    """Orquestador del pipeline completo: coordina las etapas 0-5 y gestiona alertas y observabilidad."""
+
+    # Registro de etapas: (número, clase, nombre para logs, es_fatal_si_falla)
+    _STAGE_REGISTRY: ClassVar[list[tuple[int, type[BaseStage], str, bool]]] = [
+        (1, AuditorTaxonomia,           "AUDITORIA DE TAXONOMIA",  True),
+        (2, FiltradorLicitaciones,      "FILTRADO INTELIGENTE",    True),
+        (3, EnriquecedorAPI,            "ENRIQUECIMIENTO API",     True),
+        (4, GeneradorReporte,           "REPORTE EJECUTIVO",       True),
+        (5, GeneradorReporteIncremental,"ANÁLISIS INCREMENTAL",    False),
+    ]
     
-    Ejecuta las 5 etapas en secuencia:
-    1. Auditoria de taxonomia
-    2. Filtrado inteligente
-    3. Enriquecimiento via API
-    4. Generacion de reporte ejecutivo
-    5. Analisis incremental (preserva trabajo manual)
-    """
-    
-    def __init__(self, config: Optional[Config] = None):
-        """
-        Inicializa el pipeline.
-        
-        Args:
-            config: Configuracion del proyecto (usa Config por defecto si None)
-        """
+    def __init__(self, config: Config | None = None) -> None:
         self.config = config or Config()
         self.context = PipelineContext(config=self.config)
+        cleanup_old_logs(self.config.LOG_DIR, keep_days=30)
         self.logger = ProjectLogger('pipeline_completo', self.config.LOG_DIR)
 
         # Sistema de alertas: console + archivo JSONL en LOG_DIR
@@ -62,8 +48,8 @@ class PipelineLicitaciones:
         alerts_file = self.config.LOG_DIR / f"alerts_{self.context.run_id}.jsonl"
         self.alerts.add_sink(FileAlertSink(alerts_file))
 
-        # Diccionario transitorio para backward compatibility hasta refactor Fase 2B
-        self.resultados = {
+        # Resumen de resultados por etapa (datos de custom_data de cada StageResult)
+        self.resultados: dict[str, Any] = {
             'etapa0': None,
             'etapa1': None,
             'etapa2': None,
@@ -76,23 +62,13 @@ class PipelineLicitaciones:
 
     def ejecutar(
         self,
-        etapas=None,
+        etapas: list[int] | None = None,
         descargar_archivo: bool = True,
-        archivo_entrada: Optional[Path] = None
-    ) -> Dict[str, Any]:
-        """
-        Ejecuta el pipeline completo o etapas especificas.
-        
-        Args:
-            etapas: Lista de etapas a ejecutar ([1,2,3,4] por defecto)
-            descargar_archivo: Si True, ejecuta Etapa 0 para descargar archivo fresco
-            archivo_entrada: Archivo de entrada (opcional)
-        
-        Returns:
-            dict: Resultados de cada etapa
-        """
+        archivo_entrada: Path | None = None
+    ) -> dict[str, Any]:
+        """Ejecuta las etapas indicadas en secuencia y devuelve el dict de resultados."""
         if etapas is None:
-            etapas = [1, 2, 3, 4]
+            etapas = [1, 2, 3, 4, 5]
         
         self.logger.section("PIPELINE COMPLETO - LICITACIONES MP", 80)
         self.logger.info(f"Version {__version__}")
@@ -106,145 +82,17 @@ class PipelineLicitaciones:
 
             # ETAPA 0: Descarga automática (opcional)
             if descargar_archivo:
-                self.logger.section("=" * 80, 80)
-                self.logger.info("EJECUTANDO ETAPA 0 - DESCARGA AUTOMÁTICA")
-                self.logger.section("=" * 80, 80)
-                
-                descargador = Etapa0Descarga()
-                stage_res = descargador.run(self.context)
-                self.context.stage_results['etapa0'] = stage_res
-                self.resultados['etapa0'] = stage_res.custom_data
-                
-                if not stage_res.success:
-                    self.logger.warning(f"⚠️ Etapa 0 falló ({stage_res.error_message}), continuando con archivo existente")
-                else:
-                    self.logger.info("\n✅ ETAPA 0 COMPLETADA")
-                    stats0 = stage_res.custom_data.get('stats', {})
-                    if stats0:
-                        self.logger.info(f"   * Archivo descargado: {stats0.get('archivo', 'N/A')}")
-                        self.logger.info(f"   * Tamaño: {stats0.get('tamano_mb', 0):.2f} MB")
-                self.logger.info("")
+                self._ejecutar_etapa0()
             else:
-                # Sin descarga: registrar el archivo de entrada para las etapas siguientes
                 _archivo_input = archivo_entrada or self.config.LICITACIONES_MP
                 self.context.add_artifact('etapa0_output', _archivo_input)
                 self.logger.info(f"Etapa 0 omitida — usando: {_archivo_input.name}")
                 self.logger.info("")
             
-            # ETAPA 1: Auditoria de Taxonomia
-            if 1 in etapas:
-                self.logger.section("=" * 80, 80)
-                self.logger.info("EJECUTANDO ETAPA 1 - AUDITORIA DE TAXONOMIA")
-                self.logger.section("=" * 80, 80)
-                
-                auditor = AuditorTaxonomia()
-                stage_res = auditor.run(self.context)
-                self.context.stage_results['etapa1'] = stage_res
-                self.resultados['etapa1'] = stage_res.custom_data
-                
-                if not stage_res.success:
-                    raise Exception(f"Etapa 1 falló: {stage_res.error_message}")
-                
-                self.logger.info("\nETAPA 1 COMPLETADA")
-                stats1 = self.resultados['etapa1'].get('stats', {})
-                if stats1:
-                    self.logger.info(f"   * Nuevos valores detectados: {stats1.get('nuevos', 0)}")
-                self.logger.info("")
-            
-            # ETAPA 2: Filtrado Inteligente
-            if 2 in etapas:
-                self.logger.section("=" * 80, 80)
-                self.logger.info("EJECUTANDO ETAPA 2 - FILTRADO INTELIGENTE")
-                self.logger.section("=" * 80, 80)
-                
-                filtrador = FiltradorLicitaciones()
-                stage_res = filtrador.run(self.context)
-                self.context.stage_results['etapa2'] = stage_res
-                self.resultados['etapa2'] = stage_res.custom_data
-                
-                if not stage_res.success:
-                    raise Exception(f"Etapa 2 falló: {stage_res.error_message}")
-                
-                self.logger.info("\nETAPA 2 COMPLETADA")
-                stats2 = stage_res.custom_data.get('stats', {})
-                self.logger.info(f"   * Licitaciones filtradas: {stats2.get('final', 0)}")
-                
-                try:
-                    ret_rate = (stats2.get('final', 0) / stats2.get('original', 1)) * 100
-                except Exception:
-                    ret_rate = 0
-                self.logger.info(f"   * Tasa de retención: {ret_rate:.2f}%")
-                self.logger.info("")
-            
-            # ETAPA 3: Enriquecimiento via API
-            if 3 in etapas:
-                self.logger.section("=" * 80, 80)
-                self.logger.info("EJECUTANDO ETAPA 3 - ENRIQUECIMIENTO API")
-                self.logger.section("=" * 80, 80)
-                
-                enriquecedor = EnriquecedorAPI()
-                stage_res = enriquecedor.run(self.context)
-                self.context.stage_results['etapa3'] = stage_res
-                self.resultados['etapa3'] = stage_res.custom_data
-                
-                if not stage_res.success:
-                    self.logger.error(f"❌ Etapa 3 falló con error crítico: {stage_res.error_message}")
-                    raise Exception(f"Falla fatal de Etapa 3: {stage_res.error_message}")
-                
-                if stage_res.warnings:
-                    self.logger.warning(f"Etapa 3 completada con {len(stage_res.warnings)} warnings: {stage_res.warnings[0]}")
-                
-                self.logger.info("\nETAPA 3 FINALIZADA (Parcial o Total)")
-                stats3 = stage_res.custom_data.get('stats', {})
-                self.logger.info(f"   * Licitaciones procesadas: {stats3.get('total_registros', 0)}")
-                self.logger.info(f"   * Enriquecidas con datos: {stats3.get('enriquecidos_ok', 0)}")
-                self.logger.info(f"   * Errores individuales: {stats3.get('errores_registro', 0)}")
-                self.logger.info(f"   * Errores de etapa: {stats3.get('errores_fatales_etapa', 0)}")
-                self.logger.info("")
-            
-            # ETAPA 4: Generacion de Reporte
-            if 4 in etapas:
-                self.logger.section("=" * 80, 80)
-                self.logger.info("EJECUTANDO ETAPA 4 - REPORTE EJECUTIVO")
-                self.logger.section("=" * 80, 80)
-                
-                generador = GeneradorReporte()
-                stage_res = generador.run(self.context)
-                self.context.stage_results['etapa4'] = stage_res
-                self.resultados['etapa4'] = stage_res.custom_data
-                
-                if not stage_res.success:
-                    raise Exception(f"Falla fatal de Etapa 4: {stage_res.error_message}")
-                
-                if stage_res.warnings:
-                    self.logger.warning(f"Etapa 4 completada con warnings: {stage_res.warnings[0]}")
-                
-                self.logger.info("\nETAPA 4 COMPLETADA")
-                self.logger.info(f"   * Licitaciones vigentes: {self.resultados['etapa4'].get('vigentes', 0)}")
-                self.logger.info(f"   * Historico: {self.resultados['etapa4'].get('vencidas', 0)}")
-                self.logger.info("")
-            
-            # ETAPA 5: Análisis Incremental
-            if 5 in etapas:
-                self.logger.section("=" * 80, 80)
-                self.logger.info("EJECUTANDO ETAPA 5 - ANÁLISIS INCREMENTAL")
-                self.logger.section("=" * 80, 80)
-
-                generador_incremental = GeneradorReporteIncremental()
-                stage_res = generador_incremental.run(self.context)
-                self.context.stage_results['etapa5'] = stage_res
-                self.resultados['etapa5'] = stage_res.custom_data
-
-                if not stage_res.success:
-                    self.logger.warning(f"Etapa 5 tuvo problemas: {stage_res.error_message}. Continuando...")
-
-                self.logger.info("\nETAPA 5 COMPLETADA")
-                stats5 = self.resultados['etapa5'] or {}
-                self.logger.info(f"   * Nuevas agregadas: {stats5.get('licitaciones_nuevas', 0)}")
-                self.logger.info(f"   * Existentes actualizadas: {stats5.get('licitaciones_existentes', 0)}")
-                self.logger.info(f"   * Vencidas movidas: {stats5.get('licitaciones_vencidas', 0)}")
-                self.logger.info(f"   * Tipo reporte: {stats5.get('tipo', 'N/A')}")
-                self.logger.info("")
+            # ETAPAS 1-5: ejecutar las que estén habilitadas
+            for num, StageClass, nombre, es_fatal in self._STAGE_REGISTRY:
+                if num in etapas:
+                    self._ejecutar_etapa(num, StageClass, nombre, es_fatal)
             
             # Calculo de tiempos
             self.resultados['tiempo_total'] = datetime.now() - tiempo_inicio
@@ -271,8 +119,93 @@ class PipelineLicitaciones:
         finally:
             self.logger.finalize()
     
-    def _imprimir_resumen_final(self):
-        """Imprime resumen final del pipeline"""
+    def _ejecutar_etapa0(self) -> None:
+        """Ejecuta la Etapa 0 (descarga). No es fatal si falla."""
+        self.logger.section("=" * 80, 80)
+        self.logger.info("EJECUTANDO ETAPA 0 - DESCARGA AUTOMÁTICA")
+        self.logger.section("=" * 80, 80)
+
+        descargador = Etapa0Descarga()
+        stage_res = descargador.run(self.context)
+        self.context.stage_results['etapa0'] = stage_res
+        self.resultados['etapa0'] = stage_res.custom_data
+
+        if not stage_res.success:
+            self.logger.warning(f"⚠️ Etapa 0 falló ({stage_res.error_message}), continuando con archivo existente")
+        else:
+            self.logger.info("\n✅ ETAPA 0 COMPLETADA")
+            stats0 = stage_res.custom_data.get('stats', {})
+            if stats0:
+                self.logger.info(f"   * Archivo descargado: {stats0.get('archivo', 'N/A')}")
+                self.logger.info(f"   * Tamaño: {stats0.get('tamano_mb', 0):.2f} MB")
+        self.logger.info("")
+
+    def _ejecutar_etapa(
+        self,
+        num: int,
+        StageClass: type[BaseStage],
+        nombre: str,
+        es_fatal: bool,
+    ) -> None:
+        """Ejecuta una etapa genérica, registra resultados y loguea stats."""
+        clave = f"etapa{num}"
+
+        self.logger.section("=" * 80, 80)
+        self.logger.info(f"EJECUTANDO ETAPA {num} - {nombre}")
+        self.logger.section("=" * 80, 80)
+
+        stage = StageClass()
+        stage_res = stage.run(self.context)
+        self.context.stage_results[clave] = stage_res
+        self.resultados[clave] = stage_res.custom_data
+
+        if not stage_res.success:
+            if es_fatal:
+                self.logger.error(f"❌ Etapa {num} falló: {stage_res.error_message}")
+                raise RuntimeError(f"Falla fatal de Etapa {num}: {stage_res.error_message}")
+            else:
+                self.logger.warning(f"Etapa {num} tuvo problemas: {stage_res.error_message}. Continuando...")
+                self.logger.info("")
+                return
+
+        if stage_res.warnings:
+            self.logger.warning(
+                f"Etapa {num} completada con {len(stage_res.warnings)} warnings: {stage_res.warnings[0]}"
+            )
+
+        self.logger.info(f"\nETAPA {num} COMPLETADA")
+        self._loguear_stats_etapa(num, stage_res)
+        self.logger.info("")
+
+    def _loguear_stats_etapa(self, num: int, stage_res: StageResult) -> None:
+        """Imprime las estadísticas relevantes de cada etapa."""
+        data = stage_res.custom_data or {}
+        stats = data.get('stats', {})
+
+        if num == 1:
+            self.logger.info(f"   * Nuevos valores detectados: {stats.get('nuevos', 0)}")
+        elif num == 2:
+            final = stats.get('final', 0)
+            original = stats.get('original', 1)
+            ret_rate = (final / original) * 100 if original > 0 else 0
+            self.logger.info(f"   * Licitaciones filtradas: {final}")
+            self.logger.info(f"   * Tasa de retención: {ret_rate:.2f}%")
+        elif num == 3:
+            self.logger.info(f"   * Licitaciones procesadas: {stats.get('total_registros', 0)}")
+            self.logger.info(f"   * Enriquecidas con datos: {stats.get('enriquecidos_ok', 0)}")
+            self.logger.info(f"   * Errores individuales: {stats.get('errores_registro', 0)}")
+            self.logger.info(f"   * Errores de etapa: {stats.get('errores_fatales_etapa', 0)}")
+        elif num == 4:
+            self.logger.info(f"   * Licitaciones vigentes: {data.get('vigentes', 0)}")
+            self.logger.info(f"   * Historico: {data.get('vencidas', 0)}")
+        elif num == 5:
+            detalles = data.get('detalles', {})
+            self.logger.info(f"   * Nuevas agregadas: {detalles.get('licitaciones_nuevas', 0)}")
+            self.logger.info(f"   * Existentes actualizadas: {detalles.get('licitaciones_existentes', 0)}")
+            self.logger.info(f"   * Vencidas movidas: {detalles.get('licitaciones_vencidas', 0)}")
+            self.logger.info(f"   * Tipo reporte: {detalles.get('tipo', 'N/A')}")
+
+    def _imprimir_resumen_final(self) -> None:
         self.logger.section("=" * 80, 80)
         self.logger.section("RESUMEN FINAL DEL PIPELINE", 80)
         self.logger.section("=" * 80, 80)
@@ -293,40 +226,44 @@ class PipelineLicitaciones:
         # Etapa 2
         if self.resultados['etapa2']:
             e2_stats = self.resultados['etapa2'].get('stats', {})
+            e2_final = e2_stats.get('final', 0)
+            e2_original = e2_stats.get('original', 0)
+            tasa_r = f"{(e2_final / e2_original * 100):.1f}%" if e2_original > 0 else "N/A"
             resumen += "\nETAPA 2 - FILTRADO:\n"
-            resumen += f"   * Total filtradas: {e2_stats.get('total_filtradas', 0)}\n"
-            resumen += f"   * Tasa retencion: {e2_stats.get('tasa_retencion', 0):.1f}%\n"
+            resumen += f"   * Total filtradas: {e2_final}\n"
+            resumen += f"   * Tasa retencion: {tasa_r}\n"
         
         # Etapa 3
         if self.resultados['etapa3']:
             e3_stats = self.resultados['etapa3'].get('stats', {})
             resumen += "\nETAPA 3 - ENRIQUECIMIENTO:\n"
-            resumen += f"   * Total enriquecidas: {e3_stats.get('total_enriquecidas', 0)}\n"
+            resumen += f"   * Total enriquecidas: {e3_stats.get('enriquecidos_ok', 0)}\n"
         
         # Etapa 4
         if self.resultados['etapa4']:
-            e4_stats = self.resultados['etapa4'].get('stats', {})
             resumen += "\nETAPA 4 - REPORTE:\n"
-            resumen += f"   * Vigentes: {e4_stats.get('vigentes', 0)}\n"
-            resumen += f"   * Vencidas: {e4_stats.get('vencidas', 0)}\n"
+            resumen += f"   * Vigentes: {self.resultados['etapa4'].get('vigentes', 0)}\n"
+            resumen += f"   * Vencidas: {self.resultados['etapa4'].get('vencidas', 0)}\n"
         
         # Etapa 5
         if self.resultados['etapa5']:
+            e5 = self.resultados['etapa5'].get('detalles', {})
             resumen += "\nETAPA 5 - INCREMENTAL:\n"
-            resumen += f"   * Nuevas agregadas: {self.resultados['etapa5'].get('licitaciones_nuevas', 0)}\n"
-            resumen += f"   * Existentes actualizadas: {self.resultados['etapa5'].get('licitaciones_existentes', 0)}\n"
-            resumen += f"   * Vencidas movidas: {self.resultados['etapa5'].get('licitaciones_vencidas', 0)}\n"
-            resumen += f"   * Tipo: {self.resultados['etapa5'].get('tipo', 'N/A')}\n"
+            resumen += f"   * Nuevas agregadas: {e5.get('licitaciones_nuevas', 0)}\n"
+            resumen += f"   * Existentes actualizadas: {e5.get('licitaciones_existentes', 0)}\n"
+            resumen += f"   * Vencidas movidas: {e5.get('licitaciones_vencidas', 0)}\n"
+            resumen += f"   * Tipo: {e5.get('tipo', 'N/A')}\n"
         
         resumen += "\n" + "=" * 64 + "\n"
         
         self.logger.info(resumen)
 
 
-def main():
-    """Funcion principal de ejecucion"""
-    import argparse
-    
+def main() -> int:
+    # Forzar UTF-8 en stdout/stderr ANTES de cualquier logging: en Windows
+    # cp1252 hace crashear los emojis (📋, ✅, etc.) de los logs y alertas.
+    configurar_consola_utf8()
+
     parser = argparse.ArgumentParser(description='Pipeline Licitaciones MP')
     parser.add_argument(
         '--etapas',
@@ -352,6 +289,14 @@ def main():
         help='Permitir que las etapas lean archivos directo del disco (fallback) sin etapa anterior'
     )
     parser.add_argument(
+        '--equipo',
+        type=str,
+        default=None,
+        help="Código del equipo MP cuyos filtros aplicar (ej: TELECOM, ARQ, ELEC). "
+             "Si se omite, se usa el guardado en config_usuario.json o TELECOM por defecto. "
+             "Si se especifica, se persiste como preferencia del usuario."
+    )
+    parser.add_argument(
         '--version',
         action='version',
         version=f'Pipeline Licitaciones v{__version__}'
@@ -361,8 +306,11 @@ def main():
     
     # Validar etapas
     etapas_validas = [e for e in args.etapas if 1 <= e <= 5]
+    etapas_invalidas = [e for e in args.etapas if e < 1 or e > 5]
+    if etapas_invalidas:
+        print(f"ADVERTENCIA: Etapas ignoradas (fuera de rango 1-5): {etapas_invalidas}", file=sys.stderr)
     if not etapas_validas:
-        print("ERROR: Debe especificar al menos una etapa valida (1-5)")
+        print("ERROR: Debe especificar al menos una etapa valida (1-5)", file=sys.stderr)
         return 1
     
     try:
@@ -371,27 +319,38 @@ def main():
         print("=" * 80 + "\n")
         
         pipeline = PipelineLicitaciones()
-        resultados = pipeline.ejecutar(
+        if args.standalone:
+            pipeline.context.flags['allow_fallback'] = True
+
+        # Resolver equipo: --equipo (mayor prioridad) → UserConfig persistente → default en etapa2
+        from utils.user_config import UserConfig
+        user_cfg = UserConfig.cargar()
+        equipo_codigo = (args.equipo or user_cfg.equipo_seleccionado or "").strip().upper()
+        if equipo_codigo:
+            pipeline.context.flags['equipo'] = equipo_codigo
+            # Si vino por CLI y es distinto al persistido, persistirlo
+            if args.equipo and equipo_codigo != user_cfg.equipo_seleccionado:
+                user_cfg.equipo_seleccionado = equipo_codigo
+                user_cfg.guardar()
+                print(f"[INFO] Equipo '{equipo_codigo}' guardado como preferencia del usuario.")
+
+        pipeline.ejecutar(
             etapas=etapas_validas,
             descargar_archivo=not args.no_descargar,
             archivo_entrada=args.archivo
         )
         
-        if resultados['exito']:
-            print("\nPIPELINE COMPLETADO EXITOSAMENTE")
-            return 0
-        else:
-            print("\nPIPELINE COMPLETADO CON ERRORES")
-            return 1
+        print("\nPIPELINE COMPLETADO EXITOSAMENTE")
+        return 0
     
     except KeyboardInterrupt:
         print("\n\nPIPELINE INTERRUMPIDO POR EL USUARIO")
         return 130
     
     except Exception as e:
-        print(f"\nERROR CRITICO: {e}")
+        print(f"\nERROR CRITICO: {e}", file=sys.stderr)
         return 1
 
 
 if __name__ == "__main__":
-    exit(main())
+    sys.exit(main())

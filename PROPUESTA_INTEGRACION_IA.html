@@ -1,0 +1,624 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>¿Dónde entra la IA? — Sistema MP</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Inter', sans-serif; background: #f0f3f8; color: #0d1b2a; }
+
+    .page { max-width: 1140px; margin: 0 auto; padding: 32px 24px 48px; }
+
+    /* HEADER */
+    .header {
+      background: linear-gradient(135deg, #0d1b2a 0%, #1a3050 55%, #1565c0 100%);
+      color: white; padding: 28px 36px; border-radius: 12px 12px 0 0;
+      display: flex; align-items: center; gap: 24px;
+    }
+    .logo { font-size: 1.8rem; font-weight: 900; letter-spacing: 5px; border: 2px solid rgba(255,255,255,.4); padding: 6px 16px; border-radius: 6px; }
+    .header h1 { font-size: 1.5rem; font-weight: 700; }
+    .header p { font-size: .92rem; font-weight: 300; color: rgba(255,255,255,.7); margin-top: 4px; }
+
+    .card {
+      background: white; border-radius: 0 0 12px 12px; box-shadow: 0 4px 24px rgba(0,0,0,.08);
+      padding: 32px 36px 36px;
+    }
+
+    .section-title {
+      text-align: center; margin-bottom: 24px;
+    }
+    .section-title h2 { font-size: 1.1rem; font-weight: 700; color: #0d1b2a; margin-bottom: 4px; }
+    .section-title p { font-size: .85rem; color: #64748b; }
+
+    /* ============================================= */
+    /*  PIPELINE ACTUAL (sin IA)                     */
+    /* ============================================= */
+    .pipeline-row {
+      display: flex; align-items: stretch; justify-content: center; gap: 0;
+      margin-bottom: 28px;
+    }
+    .step {
+      width: 130px; text-align: center; padding: 14px 8px 12px;
+      border-radius: 10px; border: 2px solid; background: white;
+      display: flex; flex-direction: column; align-items: center;
+    }
+    .step .n {
+      width: 28px; height: 28px; border-radius: 50%; margin-bottom: 6px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: .75rem; font-weight: 800; color: white;
+    }
+    .step .t { font-size: .8rem; font-weight: 700; line-height: 1.25; }
+    .step .d { font-size: .67rem; color: #94a3b8; margin-top: 3px; line-height: 1.3; }
+
+    .e0 { border-color: #bbdefb; } .e0 .n { background: #1976d2; } .e0 .t { color: #1565c0; }
+    .e1 { border-color: #e1bee7; } .e1 .n { background: #7b1fa2; } .e1 .t { color: #6a1b9a; }
+    .e2 { border-color: #ffcc80; } .e2 .n { background: #e65100; } .e2 .t { color: #e65100; }
+    .e3 { border-color: #b2dfdb; } .e3 .n { background: #00796b; } .e3 .t { color: #00695c; }
+    .e4 { border-color: #c5cae9; } .e4 .n { background: #283593; } .e4 .t { color: #283593; }
+    .e5 { border-color: #c8e6c9; } .e5 .n { background: #2e7d32; } .e5 .t { color: #2e7d32; }
+
+    .arr { display: flex; align-items: center; padding: 0 4px; color: #cbd5e1; font-size: 1.2rem; }
+
+    /* ============================================= */
+    /*  PIPELINE CON IA (fases .5)                   */
+    /* ============================================= */
+    .pipeline-ia {
+      display: flex; align-items: stretch; justify-content: center; gap: 0;
+      flex-wrap: nowrap; margin-bottom: 12px;
+    }
+    .pipeline-ia .step {
+      width: 100px; padding: 12px 5px 10px;
+    }
+    .pipeline-ia .step .n { width: 26px; height: 26px; font-size: .7rem; }
+    .pipeline-ia .step .t { font-size: .72rem; }
+    .pipeline-ia .step .d { font-size: .6rem; }
+    .pipeline-ia .arr { font-size: 1rem; padding: 0 2px; }
+
+    /* Fases .5 IA */
+    .ia-step {
+      width: 108px; text-align: center; padding: 12px 6px 10px;
+      border-radius: 10px; border: 2.5px dashed; background: white;
+      display: flex; flex-direction: column; align-items: center;
+      position: relative;
+    }
+    .ia-step .n {
+      width: 28px; height: 28px; border-radius: 50%; margin-bottom: 5px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: .62rem; font-weight: 800; color: white; letter-spacing: -.2px;
+    }
+    .ia-step .t { font-size: .72rem; font-weight: 700; line-height: 1.2; }
+    .ia-step .d { font-size: .6rem; margin-top: 3px; line-height: 1.3; }
+    .ia-step .tag {
+      position: absolute; top: -10px; right: -6px;
+      font-size: .55rem; font-weight: 800; color: white; padding: 2px 7px;
+      border-radius: 8px; letter-spacing: .3px;
+    }
+
+    .ia25 { border-color: #ce93d8; background: #fdf5ff; }
+    .ia25 .n { background: #7b1fa2; } .ia25 .t { color: #6a1b9a; } .ia25 .d { color: #9c27b0; }
+    .ia25 .tag { background: #7b1fa2; }
+
+    .ia35 { border-color: #ffcc80; background: #fffbf2; }
+    .ia35 .n { background: #e65100; } .ia35 .t { color: #bf360c; } .ia35 .d { color: #e65100; }
+    .ia35 .tag { background: #e65100; }
+
+    .ia45 { border-color: #90caf9; background: #f5f9ff; }
+    .ia45 .n { background: #1565c0; } .ia45 .t { color: #0d47a1; } .ia45 .d { color: #1976d2; }
+    .ia45 .tag { background: #1565c0; }
+
+    /* Wrapper del agente autónomo */
+    .agent-wrapper {
+      border: 3px dashed #66bb6a; border-radius: 16px; padding: 16px 14px 14px;
+      background: linear-gradient(180deg, #f5fff7 0%, white 40%);
+      position: relative; margin-bottom: 32px;
+    }
+    .agent-label {
+      position: absolute; top: -13px; left: 50%; transform: translateX(-50%);
+      background: #2e7d32; color: white; font-size: .72rem; font-weight: 700;
+      padding: 4px 16px; border-radius: 20px; white-space: nowrap;
+      letter-spacing: .3px;
+    }
+    .agent-sublabel {
+      text-align: center; margin-top: 10px; font-size: .72rem; color: #2e7d32;
+      font-weight: 600; line-height: 1.4;
+    }
+
+    /* Separador */
+    .divider {
+      border: none; border-top: 2px solid #e2e8f0; margin: 32px 0;
+    }
+
+    /* LEGEND */
+    .legend {
+      display: flex; align-items: center; justify-content: center; gap: 24px;
+      margin-bottom: 24px; flex-wrap: wrap;
+    }
+    .leg-item { display: flex; align-items: center; gap: 7px; }
+    .leg-box {
+      width: 28px; height: 16px; border-radius: 4px; border: 2px solid;
+    }
+    .leg-box.solid { border-style: solid; background: #f8fafc; border-color: #94a3b8; }
+    .leg-box.dashed { border-style: dashed; background: #fdf5ff; border-color: #ce93d8; }
+    .leg-label { font-size: .78rem; font-weight: 600; color: #64748b; }
+
+    /* DETAIL CARDS */
+    .details { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 24px; max-width: 700px; margin-left: auto; margin-right: auto; }
+    .detail-card {
+      border-radius: 10px; padding: 18px 16px 16px; border: 1px solid #e2e8f0;
+      position: relative; overflow: hidden;
+    }
+    .detail-card::before {
+      content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px;
+    }
+    .dc1::before { background: #7b1fa2; } .dc1 { background: #fdf5ff; }
+    .dc2::before { background: #e65100; } .dc2 { background: #fffbf2; }
+    .dc3::before { background: #1565c0; } .dc3 { background: #f5f9ff; }
+
+    .detail-card .phase-num {
+      font-size: .7rem; font-weight: 800; text-transform: uppercase;
+      letter-spacing: 1px; margin-bottom: 6px;
+    }
+    .dc1 .phase-num { color: #7b1fa2; }
+    .dc2 .phase-num { color: #e65100; }
+    .dc3 .phase-num { color: #1565c0; }
+    .detail-card h3 { font-size: .95rem; font-weight: 700; margin-bottom: 8px; color: #0d1b2a; }
+    .detail-card p { font-size: .82rem; color: #374151; line-height: 1.55; }
+    .detail-card p strong { color: #0d1b2a; }
+    .detail-card .time {
+      display: inline-block; margin-top: 10px; font-size: .72rem; font-weight: 600;
+      padding: 3px 10px; border-radius: 20px; background: white;
+      border: 1px solid #e2e8f0; color: #64748b;
+    }
+
+    /* Agent detail */
+    .agent-detail {
+      border: 2px solid #a5d6a7; border-radius: 10px; padding: 18px 20px;
+      background: #f5fff7; position: relative; overflow: hidden;
+    }
+    .agent-detail::before {
+      content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px; background: #2e7d32;
+    }
+    .agent-detail .phase-num { font-size: .7rem; font-weight: 800; letter-spacing: 1px; color: #2e7d32; margin-bottom: 6px; }
+    .agent-detail h3 { font-size: .95rem; font-weight: 700; margin-bottom: 8px; color: #1b5e20; }
+    .agent-detail p { font-size: .82rem; color: #374151; line-height: 1.55; }
+    .agent-detail p strong { color: #0d1b2a; }
+    .agent-detail .time { display: inline-block; margin-top: 10px; font-size: .72rem; font-weight: 600; padding: 3px 10px; border-radius: 20px; background: white; border: 1px solid #c8e6c9; color: #2e7d32; }
+
+    /* PRICING TABLE */
+    .pricing-section { margin-bottom: 28px; }
+    .pricing-table {
+      width: 100%; border-collapse: collapse; border-radius: 10px; overflow: hidden;
+      box-shadow: 0 1px 8px rgba(0,0,0,.06); font-size: .82rem;
+    }
+    .pricing-table thead th {
+      background: #0d1b2a; color: white; padding: 12px 14px;
+      font-weight: 700; font-size: .75rem; text-transform: uppercase;
+      letter-spacing: .5px; text-align: center;
+    }
+    .pricing-table thead th:first-child { text-align: left; }
+    .pricing-table tbody td {
+      padding: 10px 14px; border-bottom: 1px solid #e2e8f0; text-align: center;
+      color: #374151;
+    }
+    .pricing-table tbody td:first-child { text-align: left; font-weight: 600; color: #0d1b2a; }
+    .pricing-table tbody tr:last-child td { border-bottom: none; }
+    .pricing-table tbody tr:nth-child(even) { background: #f8fafc; }
+    .pricing-table tfoot td {
+      padding: 12px 14px; font-weight: 800; border-top: 2px solid #0d1b2a;
+      text-align: center; color: #0d1b2a; font-size: .88rem;
+    }
+    .pricing-table tfoot td:first-child { text-align: left; }
+    .price-highlight {
+      display: inline-block; padding: 3px 12px; border-radius: 20px;
+      font-weight: 800; font-size: .9rem;
+    }
+    .price-green { background: #e8f5e9; color: #2e7d32; }
+    .price-blue { background: #e3f2fd; color: #1565c0; }
+    .pricing-note {
+      font-size: .76rem; color: #64748b; margin-top: 10px; line-height: 1.5;
+      text-align: center;
+    }
+    .pricing-note strong { color: #374151; }
+    .pricing-cards {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 18px;
+      max-width: 700px; margin-left: auto; margin-right: auto;
+    }
+    .pricing-card {
+      border-radius: 10px; padding: 20px 18px; text-align: center;
+      position: relative; overflow: hidden;
+    }
+    .pricing-card::before {
+      content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px;
+    }
+    .pc-current { background: #e8f5e9; border: 1px solid #c8e6c9; }
+    .pc-current::before { background: #2e7d32; }
+    .pc-scale { background: #e3f2fd; border: 1px solid #bbdefb; }
+    .pc-scale::before { background: #1565c0; }
+    .pricing-card .pc-label {
+      font-size: .68rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 1px; margin-bottom: 4px;
+    }
+    .pc-current .pc-label { color: #2e7d32; }
+    .pc-scale .pc-label { color: #1565c0; }
+    .pricing-card .pc-users { font-size: .82rem; font-weight: 600; color: #374151; margin-bottom: 10px; }
+    .pricing-card .pc-price { font-size: 1.8rem; font-weight: 900; margin-bottom: 4px; }
+    .pc-current .pc-price { color: #2e7d32; }
+    .pc-scale .pc-price { color: #1565c0; }
+    .pricing-card .pc-period { font-size: .72rem; color: #94a3b8; font-weight: 600; }
+    .pricing-card .pc-note { font-size: .72rem; color: #64748b; margin-top: 8px; line-height: 1.4; }
+
+    /* BOTTOM */
+    .recommend {
+      background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px;
+      padding: 20px 24px; text-align: center; margin-top: 20px;
+    }
+    .recommend h4 { font-size: .9rem; font-weight: 700; margin-bottom: 6px; color: #0d1b2a; }
+    .recommend p { font-size: .84rem; color: #374151; line-height: 1.5; max-width: 700px; margin: 0 auto; }
+    .recommend strong { color: #1565c0; }
+
+    .footer {
+      text-align: center; margin-top: 24px; font-size: .72rem; color: #94a3b8; letter-spacing: .5px;
+    }
+
+    /* PRINT */
+    .print-btn-row {
+      position: fixed; bottom: 24px; right: 24px; z-index: 100;
+    }
+    .print-btn {
+      border: none; padding: 10px 20px; border-radius: 8px; font-family: 'Inter', sans-serif;
+      font-size: .82rem; font-weight: 600; cursor: pointer; color: white;
+      background: #1565c0; box-shadow: 0 3px 12px rgba(21,101,192,.35);
+    }
+    .print-btn:hover { filter: brightness(1.1); }
+    @media print {
+      *, *::before, *::after { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+      body { background: white; font-size: 11px; }
+      .page { padding: 0; max-width: 100%; }
+      .print-btn-row { display: none !important; }
+      @page { size: A4 landscape; margin: 8mm; }
+
+      /* ---- PAGE 1: Diagrams ---- */
+      .header { padding: 14px 24px; gap: 16px; border-radius: 8px 8px 0 0; }
+      .logo { font-size: 1.3rem; padding: 4px 12px; }
+      .header h1 { font-size: 1.15rem; }
+      .header p { font-size: .78rem; margin-top: 2px; }
+
+      .card { padding: 14px 22px 16px; border-radius: 0 0 8px 8px; box-shadow: none; }
+
+      .section-title { margin-bottom: 8px; }
+      .section-title h2 { font-size: .92rem; margin-bottom: 2px; }
+      .section-title p { font-size: .72rem; }
+
+      .pipeline-row { margin-bottom: 10px; }
+      .step { width: 115px; padding: 8px 6px 7px; border-radius: 7px; }
+      .step .n { width: 22px; height: 22px; font-size: .65rem; margin-bottom: 3px; }
+      .step .t { font-size: .7rem; }
+      .step .d { font-size: .58rem; margin-top: 2px; }
+      .arr { font-size: 1rem; padding: 0 3px; }
+
+      .divider { margin: 10px 0; }
+
+      .legend { margin-bottom: 8px; gap: 16px; }
+      .leg-box { width: 22px; height: 12px; }
+      .leg-label { font-size: .68rem; }
+
+      .pipeline-ia { margin-bottom: 6px; }
+      .pipeline-ia .step { width: 88px; padding: 7px 4px 6px; }
+      .pipeline-ia .step .n { width: 20px; height: 20px; font-size: .6rem; }
+      .pipeline-ia .step .t { font-size: .62rem; }
+      .pipeline-ia .step .d { font-size: .52rem; }
+      .pipeline-ia .arr { font-size: .85rem; padding: 0 1px; }
+
+      .ia-step { width: 94px; padding: 7px 4px 6px; }
+      .ia-step .n { width: 22px; height: 22px; font-size: .55rem; margin-bottom: 3px; }
+      .ia-step .t { font-size: .62rem; }
+      .ia-step .d { font-size: .52rem; margin-top: 2px; }
+      .ia-step .tag { font-size: .48rem; padding: 1px 5px; top: -7px; right: -4px; }
+
+      .details { gap: 10px; margin-bottom: 0; max-width: 100%; }
+      .detail-card { padding: 10px 12px 10px; border-radius: 7px; }
+      .detail-card::before { height: 3px; }
+      .detail-card .phase-num { font-size: .6rem; margin-bottom: 3px; }
+      .detail-card h3 { font-size: .8rem; margin-bottom: 4px; }
+      .detail-card p { font-size: .7rem; line-height: 1.4; }
+      .detail-card .time { margin-top: 5px; font-size: .62rem; padding: 2px 8px; }
+
+      /* ---- FORCED PAGE BREAK ---- */
+      .page-break-before {
+        break-before: page !important;
+        page-break-before: always !important;
+        height: 0; margin: 0; padding: 0;
+      }
+
+      /* ---- PAGE 2: Pricing ---- */
+      .pricing-section { margin-bottom: 10px; }
+      .pricing-table { font-size: .72rem; box-shadow: none; }
+      .pricing-table thead th { padding: 7px 10px; font-size: .65rem; }
+      .pricing-table tbody td { padding: 6px 10px; }
+      .pricing-table tbody td small { font-size: .55rem !important; }
+      .pricing-table tfoot td { padding: 7px 10px; font-size: .76rem; }
+      .price-highlight { padding: 2px 8px; font-size: .76rem; }
+
+      .pricing-note { font-size: .65rem; margin-top: 6px; }
+
+      .pricing-cards { gap: 10px; margin-top: 10px; max-width: 100%; }
+      .pricing-card { padding: 12px 14px; border-radius: 7px; }
+      .pricing-card::before { height: 3px; }
+      .pricing-card .pc-label { font-size: .6rem; margin-bottom: 2px; }
+      .pricing-card .pc-users { font-size: .72rem; margin-bottom: 5px; }
+      .pricing-card .pc-price { font-size: 1.4rem; margin-bottom: 2px; }
+      .pricing-card .pc-period { font-size: .62rem; }
+      .pricing-card .pc-note { font-size: .62rem; margin-top: 4px; }
+
+      .recommend { margin-top: 10px; padding: 10px 16px; border-radius: 7px; }
+      .recommend h4 { font-size: .78rem; margin-bottom: 3px; }
+      .recommend p { font-size: .72rem; line-height: 1.4; }
+
+      .footer { margin-top: 8px; font-size: .6rem; }
+
+      /* Prevent breaks inside blocks */
+      .header, .pipeline-row, .pipeline-ia, .legend,
+      .detail-card, .details, .pricing-table, .pricing-cards,
+      .pricing-card, .recommend, .section-title {
+        break-inside: avoid !important;
+        page-break-inside: avoid !important;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<div class="print-btn-row">
+  <button class="print-btn" onclick="window.print()">Imprimir / PDF</button>
+</div>
+
+<div class="page">
+
+  <div class="header">
+    <div class="logo">MP</div>
+    <div>
+      <h1>¿Dónde entra la Inteligencia Artificial?</h1>
+      <p>Las fases IA se insertan entre las actuales como sub-etapas: 2.5 y 3.5</p>
+    </div>
+  </div>
+
+  <div class="card">
+
+    <!-- ========== HOY ========== -->
+    <div class="section-title">
+      <h2>Hoy — El sistema tiene 6 fases (sin IA)</h2>
+      <p>Se ejecuta con un clic cada mañana. Tarda unos 45 minutos.</p>
+    </div>
+
+    <div class="pipeline-row">
+      <div class="step e0"><div class="n">0</div><div class="t">Descarga</div><div class="d">Baja las 12.000 licitaciones del día</div></div>
+      <div class="arr">➜</div>
+      <div class="step e1"><div class="n">1</div><div class="t">Auditoría</div><div class="d">Verifica categorías nuevas</div></div>
+      <div class="arr">➜</div>
+      <div class="step e2"><div class="n">2</div><div class="t">Filtrado</div><div class="d">Deja solo las ~60 relevantes</div></div>
+      <div class="arr">➜</div>
+      <div class="step e3"><div class="n">3</div><div class="t">Detalle</div><div class="d">Busca ficha completa de cada una</div></div>
+      <div class="arr">➜</div>
+      <div class="step e4"><div class="n">4</div><div class="t">Reporte</div><div class="d">Arma el Excel para el equipo</div></div>
+      <div class="arr">➜</div>
+      <div class="step e5"><div class="n">5</div><div class="t">Actualización</div><div class="d">Agrega nuevas sin borrar notas</div></div>
+    </div>
+
+    <hr class="divider">
+
+    <!-- ========== CON IA ========== -->
+    <div class="section-title">
+      <h2>Con IA — Se agregan 2 sub-fases entre las existentes</h2>
+      <p>Las fases actuales no se tocan. La IA se inserta como pasos intermedios: 2.5 y 3.5</p>
+    </div>
+
+    <div class="legend">
+      <div class="leg-item"><div class="leg-box solid"></div><span class="leg-label">Fase actual (ya existe)</span></div>
+      <div class="leg-item"><div class="leg-box dashed"></div><span class="leg-label">Sub-fase IA (nueva)</span></div>
+    </div>
+
+    <div>
+      <div class="pipeline-ia">
+        <div class="step e0"><div class="n">0</div><div class="t">Descarga</div><div class="d">12.000 del día</div></div>
+        <div class="arr">➜</div>
+        <div class="step e1"><div class="n">1</div><div class="t">Auditoría</div><div class="d">Categorías</div></div>
+        <div class="arr">➜</div>
+        <div class="step e2"><div class="n">2</div><div class="t">Filtrado</div><div class="d">~60 relevantes</div></div>
+        <div class="arr">➜</div>
+
+        <!-- FASE 2.5 IA -->
+        <div class="ia-step ia25">
+          <div class="tag">IA</div>
+          <div class="n">2.5</div>
+          <div class="t">Rescate inteligente</div>
+          <div class="d">Revisa descartadas y rescata las relevantes</div>
+        </div>
+        <div class="arr">➜</div>
+
+        <div class="step e3"><div class="n">3</div><div class="t">Detalle</div><div class="d">Ficha completa</div></div>
+        <div class="arr">➜</div>
+
+        <!-- FASE 3.5 IA -->
+        <div class="ia-step ia35">
+          <div class="tag">IA</div>
+          <div class="n">3.5</div>
+          <div class="t">Puntaje</div>
+          <div class="d">Nota 1-100 según conveniencia</div>
+        </div>
+        <div class="arr">➜</div>
+
+        <div class="step e4"><div class="n">4</div><div class="t">Reporte</div><div class="d">Excel final</div></div>
+        <div class="arr">➜</div>
+
+        <div class="step e5"><div class="n">5</div><div class="t">Actualización</div><div class="d">Incremental</div></div>
+      </div>
+    </div>
+
+    <!-- ========== DETALLE DE CADA FASE IA ========== -->
+    <div class="section-title" style="margin-bottom: 16px;">
+      <h2>Detalle de cada sub-fase IA</h2>
+    </div>
+
+    <div class="details">
+      <div class="detail-card dc1">
+        <div class="phase-num">FASE 2.5 — ENTRE FILTRADO Y DETALLE</div>
+        <h3>Rescate inteligente</h3>
+        <p>
+          El filtro actual usa <strong>palabras exactas</strong>. Si una licitación relevante usa palabras diferentes, se pierde.<br><br>
+          La IA <strong>revisa las descartadas</strong> y rescata las que parecen relevantes aunque no usen las palabras exactas.
+        </p>
+        <span class="time">2–4 semanas</span>
+      </div>
+      <div class="detail-card dc2">
+        <div class="phase-num">FASE 3.5 — ENTRE DETALLE Y REPORTE</div>
+        <h3>Puntaje de prioridad</h3>
+        <p>
+          La IA le pone <strong>nota del 1 al 100</strong> a cada licitación:<br><br>
+          ¿Es consultoría o compra? ¿El monto es atractivo? ¿Hay plazo? ¿MP tiene experiencia en esa zona?<br><br>
+          El Excel sale <strong>ordenado de mejor a peor</strong>.
+        </p>
+        <span class="time">4–6 semanas</span>
+      </div>
+    </div>
+
+    <!-- SALTO DE PÁGINA para PDF -->
+    <div class="page-break-before"></div>
+
+    <!-- ========== COSTOS ========== -->
+    <div class="section-title">
+      <h2>Estimación de costos mensuales de IA</h2>
+      <p>Ejecución automática de lunes a viernes = <strong>22 días hábiles/mes</strong>. Precios API de OpenAI (GPT-4o-mini).</p>
+    </div>
+
+    <div class="pricing-section">
+
+      <!-- Cálculo detallado -->
+      <table class="pricing-table">
+        <thead>
+          <tr>
+            <th>Fase IA</th>
+            <th>Volumen por ejecución</th>
+            <th>× 22 días</th>
+            <th>Tokens / mes</th>
+            <th>Costo 1 usuario</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Fase 2.5 — Rescate inteligente</td>
+            <td>~200 descartadas nuevas/día<br><small style="color:#94a3b8">~750 tokens c/u (prompt + respuesta)</small></td>
+            <td>4.400 licitaciones</td>
+            <td>~3.3 M</td>
+            <td><strong>$0.59</strong></td>
+          </tr>
+          <tr>
+            <td>Fase 3.5 — Puntaje de prioridad</td>
+            <td>~12 filtradas nuevas/día<br><small style="color:#94a3b8">~2.450 tokens c/u (ficha completa + score)</small></td>
+            <td>264 licitaciones</td>
+            <td>~0.65 M</td>
+            <td><strong>$0.11</strong></td>
+          </tr>
+        </tbody>
+        <tfoot>
+          <tr>
+            <td>Total mensual</td>
+            <td></td>
+            <td>4.664 llamadas IA</td>
+            <td>~3.95 M</td>
+            <td><span class="price-highlight price-green">$0.70</span></td>
+          </tr>
+        </tfoot>
+      </table>
+
+      <p class="pricing-note">
+        Modelo: <strong>GPT-4o-mini</strong> — entrada $0.15 / 1M tokens, salida $0.60 / 1M tokens.<br>
+        El sistema solo envía licitaciones <strong>nuevas</strong> cada día (no reprocesa las ya vistas).<br>
+        Con <strong>$5 USD de crédito API → alcanza para ~7 meses</strong> de operación.
+      </p>
+
+      <!-- Escalabilidad -->
+      <div class="section-title" style="margin-top: 28px; margin-bottom: 16px;">
+        <h2>¿Y si lo usan más equipos?</h2>
+        <p>Cada equipo (energía, transporte, agua, etc.) procesaría su propio sector con el mismo script</p>
+      </div>
+
+      <table class="pricing-table">
+        <thead>
+          <tr>
+            <th>Escenario</th>
+            <th>Usuarios</th>
+            <th>Ejecuciones / mes</th>
+            <th>Costo mensual</th>
+            <th>Costo anual</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Actual (solo Telecom)</td>
+            <td>1</td>
+            <td>22</td>
+            <td><strong>$0.70</strong></td>
+            <td><strong>$8.40</strong></td>
+          </tr>
+          <tr>
+            <td>3 equipos (1 persona c/u)</td>
+            <td>3</td>
+            <td>66</td>
+            <td><strong>$2.10</strong></td>
+            <td><strong>$25.20</strong></td>
+          </tr>
+          <tr>
+            <td>5 equipos (1 persona c/u)</td>
+            <td>5</td>
+            <td>110</td>
+            <td><strong>$3.50</strong></td>
+            <td><strong>$42.00</strong></td>
+          </tr>
+          <tr>
+            <td>10 equipos (1 persona c/u)</td>
+            <td>10</td>
+            <td>220</td>
+            <td><strong>$7.00</strong></td>
+            <td><strong>$84.00</strong></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="pricing-cards">
+        <div class="pricing-card pc-current">
+          <div class="pc-label">Hoy — 1 usuario</div>
+          <div class="pc-users">Telecom, ITS &amp; Security</div>
+          <div class="pc-price">$0.70 <small style="font-size:.5em;font-weight:400">USD/mes</small></div>
+          <div class="pc-period">22 ejecuciones × 4.664 llamadas IA</div>
+          <div class="pc-note">Con $5 de crédito API alcanza para <strong>~7 meses</strong></div>
+        </div>
+        <div class="pricing-card pc-scale">
+          <div class="pc-label">Escalado — 10 equipos</div>
+          <div class="pc-users">Toda la oficina de Chile</div>
+          <div class="pc-price">$7.00 <small style="font-size:.5em;font-weight:400">USD/mes</small></div>
+          <div class="pc-period">220 ejecuciones × ~46.640 llamadas IA</div>
+          <div class="pc-note">Menos de lo que cuesta <strong>un almuerzo</strong></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RECOMENDACIÓN -->
+    <div class="recommend">
+      <h4>Recomendación: empezar por la Fase 2.5 (Rescate inteligente)</h4>
+      <p>
+        Maximiza la cobertura del sistema recuperando licitaciones que hoy se pierden por no usar las palabras exactas.
+        <strong>No cambia nada de lo que ya funciona</strong> — solo agrega una revisión extra antes de buscar el detalle.
+        Costo: <strong>$0.59 USD/mes</strong> para 1 usuario.
+      </p>
+    </div>
+
+    <div class="footer">
+      Sebastian Chirino Chile · Sistema de Licitaciones v6.0 · Mayo 2026
+    </div>
+
+  </div>
+</div>
+</body>
+</html>

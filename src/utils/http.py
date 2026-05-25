@@ -1,11 +1,11 @@
 import time
+from typing import ClassVar
+
 import requests
 from requests.adapters import HTTPAdapter
-from requests.exceptions import RequestException, Timeout, ConnectionError
-from typing import Optional, Dict, Any
+from requests.exceptions import ConnectionError, RequestException, Timeout
 
-from utils.logger import ProjectLogger
-
+from .logger import ProjectLogger
 
 # Delay mínimo de espera por tipo de fallo antes de reintentar
 _DELAY_MIN_SERVIDOR = 30.0   # 500/502/503/504: el servidor necesita recuperarse
@@ -17,9 +17,9 @@ class HTTPClient:
     """Cliente HTTP centralizado con políticas unificadas de resiliencia."""
 
     # Errores que merecen reintento (Timeouts, Caídas temporales del server, Limitadores de tasa)
-    RETRYABLE_STATUS = {429, 500, 502, 503, 504}
+    RETRYABLE_STATUS: ClassVar[set[int]] = {429, 500, 502, 503, 504}
 
-    def __init__(self, logger: ProjectLogger, max_retries: int = 3, timeout: int = 15, backoff_factor: float = 2.0):
+    def __init__(self, logger: ProjectLogger, max_retries: int = 3, timeout: int = 15, backoff_factor: float = 2.0) -> None:
         self.logger = logger
         self.max_retries = max_retries
         self.timeout = timeout
@@ -45,16 +45,15 @@ class HTTPClient:
         s.mount('http://',  adapter)
         return s
 
-    def _renovar_sesion(self):
+    def renovar_sesion(self) -> None:
         """Cierra la sesión actual (y sus conexiones TCP) y abre una nueva limpia.
 
         Crítico para recuperarse de timeouts: una conexión TCP que expiró queda
         en estado indefinido en el pool. Reutilizarla produce cascadas de fallos.
         """
-        try:
+        import contextlib
+        with contextlib.suppress(Exception):
             self.session.close()
-        except Exception:
-            pass
         self.session = self._nueva_sesion()
 
     def get(self, url: str, **kwargs) -> requests.Response:
@@ -119,7 +118,7 @@ class HTTPClient:
                 )
 
             if renovar_sesion:
-                self._renovar_sesion()
+                self.renovar_sesion()
 
             self.logger.warning(
                 f"⚠️ API Mercado Público — {error_msg} "
@@ -127,6 +126,6 @@ class HTTPClient:
             )
             time.sleep(delay)
 
-    def close(self):
+    def close(self) -> None:
         """Cierra la sesión y libera conexiones TCP."""
         self.session.close()

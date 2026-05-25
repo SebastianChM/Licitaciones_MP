@@ -1,26 +1,41 @@
 # Analizador incremental para detectar cambios y sugerir mejoras
 # Preserva trabajo manual de usuarios y solo actualiza lo necesario
 
-import pandas as pd
-import openpyxl
-from pathlib import Path
-from typing import Dict, List, Set, Optional
-from datetime import datetime
 import json
+from datetime import datetime
+from pathlib import Path
+
+import openpyxl
+import pandas as pd
 
 from .config import Config
-from .text_processing import normalizar_texto
 from .logger import ProjectLogger
+from .text_processing import normalizar_texto
 
 
 class AnalizadorIncremental:
     """Analiza cambios incrementales en datos y sugiere mejoras de filtros"""
-    
-    def __init__(self, config: Optional[Config] = None):
+
+    def __init__(self, config: Config | None = None, logger: ProjectLogger | None = None) -> None:
         self.config = config or Config()
-        self.logger = ProjectLogger('analizador_incremental', self.config.LOG_DIR)
+        self._provided_logger = logger   # logger externo (p.ej. del stage padre)
+        self._auto_logger: ProjectLogger | None = None  # creado bajo demanda si no hay externo
+
+    @property
+    def logger(self) -> ProjectLogger:
+        """Logger del analizador: usa el externo si fue inyectado, si no crea uno propio."""
+        if self._provided_logger is not None:
+            return self._provided_logger
+        if self._auto_logger is None:
+            self._auto_logger = ProjectLogger('analizador_incremental', self.config.LOG_DIR)
+        return self._auto_logger
+
+    @logger.setter
+    def logger(self, value: ProjectLogger) -> None:
+        """Permite al stage padre inyectar su logger tras la instanciación."""
+        self._provided_logger = value
         
-    def analizar_cambios_taxonomia(self, datos_nuevos: pd.DataFrame) -> Dict:
+    def analizar_cambios_taxonomia(self, datos_nuevos: pd.DataFrame) -> dict:
         """Analiza cambios en taxonomía para sugerir filtros nuevos"""
         
         self.logger.info("🔍 Analizando cambios en taxonomía...")
@@ -28,7 +43,7 @@ class AnalizadorIncremental:
         # Cargar taxonomía actual del PIVOT
         taxonomia_actual = self._cargar_taxonomia_pivot()
         
-        # Extraeer taxonomía de datos nuevos
+        # Extraer taxonomía de datos nuevos
         taxonomia_nueva = self._extraer_taxonomia_datos(datos_nuevos)
         
         # Comparar y encontrar diferencias
@@ -50,7 +65,7 @@ class AnalizadorIncremental:
             'timestamp': datetime.now().isoformat()
         }
     
-    def analizar_reporte_incremental(self, datos_nuevos: pd.DataFrame, archivo_reporte_anterior: Path = None) -> Dict:
+    def analizar_reporte_incremental(self, datos_nuevos: pd.DataFrame, archivo_reporte_anterior: Path | None = None) -> dict:
         """Analiza qué licitaciones son realmente nuevas vs existentes"""
         
         self.logger.info("📊 Analizando reporte incremental...")
@@ -80,7 +95,7 @@ class AnalizadorIncremental:
         
         return resultado
     
-    def generar_reporte_cambios(self, analisis_taxonomia: Dict, analisis_reporte: Dict) -> Dict:
+    def generar_reporte_cambios(self, analisis_taxonomia: dict, analisis_reporte: dict) -> dict:
         """Genera reporte completo de cambios y sugerencias"""
         
         reporte = {
@@ -106,17 +121,18 @@ class AnalizadorIncremental:
         
         # Guardar reporte
         archivo_reporte = self.config.LOG_DIR / f"analisis_incremental_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
-        with open(archivo_reporte, 'w', encoding='utf-8') as f:
+        with archivo_reporte.open('w', encoding='utf-8') as f:
             json.dump(reporte, f, indent=2, ensure_ascii=False)
         
         self.logger.info(f"📄 Reporte de cambios guardado: {archivo_reporte.name}")
         
         return reporte
     
-    def _cargar_taxonomia_pivot(self) -> Dict[str, Set]:
+    def _cargar_taxonomia_pivot(self) -> dict[str, set]:
         """Carga taxonomía actual del PIVOT_MAESTRO desde hoja 04-BASE (fuente canónica)."""
         taxonomia = {'nivel1': set(), 'nivel2': set(), 'nivel3': set(), 'generico': set()}
 
+        wb = None
         try:
             wb = openpyxl.load_workbook(self.config.PIVOT_MAESTRO, data_only=True)
 
@@ -128,11 +144,13 @@ class AnalizadorIncremental:
 
             ws = wb[sheet_name]
             campo_idx = {}
+            header_row_number: int | None = None
 
-            # Detectar fila de encabezado (máx 30 filas)
+            # Detectar fila de encabezado (máx 30 filas) y capturar su número de fila
             for row in ws.iter_rows(max_row=30):
                 vals = [normalizar_texto(str(c.value)) if c.value else '' for c in row[:10]]
                 if any('NIVEL' in v and '1' in v for v in vals):
+                    header_row_number = row[0].row
                     for j, cell in enumerate(row[:10]):
                         if not cell.value:
                             continue
@@ -151,11 +169,8 @@ class AnalizadorIncremental:
                 self.logger.warning(f"⚠️ No se detectó encabezado de taxonomía en hoja {sheet_name}")
                 return taxonomia
 
-            header_row = next(
-                (r for r in ws.iter_rows(max_row=30)
-                 if any(normalizar_texto(str(c.value or '')) for c in r[:10])), None
-            )
-            start_row = (header_row[0].row + 1) if header_row else 2
+            # start_row viene del número de fila del encabezado encontrado, no de una nueva búsqueda
+            start_row = (header_row_number + 1) if header_row_number else 2
 
             for row in ws.iter_rows(min_row=start_row):
                 for campo, idx in campo_idx.items():
@@ -163,16 +178,18 @@ class AnalizadorIncremental:
                     if val and str(val).strip() not in ('', 'nan', 'None'):
                         taxonomia[campo].add(normalizar_texto(str(val)))
 
-            wb.close()
             total = sum(len(v) for v in taxonomia.values())
             self.logger.info(f"[OK] Taxonomía cargada desde {sheet_name}: {total} valores")
 
         except Exception as e:
             self.logger.warning(f"⚠️ Error cargando taxonomía del PIVOT: {e}")
+        finally:
+            if wb is not None:
+                wb.close()
 
         return taxonomia
     
-    def _extraer_taxonomia_datos(self, datos: pd.DataFrame) -> Dict[str, Set]:
+    def _extraer_taxonomia_datos(self, datos: pd.DataFrame) -> dict[str, set]:
         """Extrae taxonomía de datos nuevos"""
         
         taxonomia = {
@@ -190,11 +207,11 @@ class AnalizadorIncremental:
         
         return taxonomia
     
-    def _encontrar_nuevos_valores(self, valores_actuales: Set, valores_nuevos: Set) -> List[str]:
+    def _encontrar_nuevos_valores(self, valores_actuales: set, valores_nuevos: set) -> list[str]:
         """Encuentra valores que están en nuevos pero no en actuales"""
-        return sorted(list(valores_nuevos - valores_actuales))
+        return sorted(valores_nuevos - valores_actuales)
     
-    def _generar_sugerencias_filtros(self, cambios: Dict, datos: pd.DataFrame) -> Dict:
+    def _generar_sugerencias_filtros(self, cambios: dict, datos: pd.DataFrame) -> dict:
         """Genera sugerencias de filtros basado en cambios detectados"""
         
         sugerencias = {
@@ -204,11 +221,11 @@ class AnalizadorIncremental:
         
         # Analizar patrones en nuevos valores para sugerir filtros
         todos_nuevos = []
-        for categoria, valores in cambios.items():
+        for valores in cambios.values():
             todos_nuevos.extend(valores)
         
         # Palabras clave que sugieren inclusión (ingeniería/consultoría) — normalizadas sin tilde
-        keywords_inclusion = ['CONSULTOR', 'INGENIR', 'DISENO', 'ARQUITECTUR', 'TECNIC', 'PROYECTO', 'DESARROLLO']
+        keywords_inclusion = ['CONSULTOR', 'INGENIER', 'DISENO', 'ARQUITECTUR', 'TECNIC', 'PROYECTO', 'DESARROLLO']
 
         # Palabras clave que sugieren exclusión — normalizadas sin tilde
         keywords_exclusion = ['SUMINISTRO', 'ARRIENDO', 'MANTENCI', 'LIMPIEZA', 'VIGILANC', 'ALIMENTA', 'TRANSPORT']
@@ -234,7 +251,7 @@ class AnalizadorIncremental:
         
         return sugerencias
     
-    def _encontrar_reporte_mas_reciente(self) -> Optional[Path]:
+    def _encontrar_reporte_mas_reciente(self) -> Path | None:
         """Encuentra el reporte más reciente en la carpeta de presentación"""
         
         archivos = list(self.config.PRESENTACION_DIR.glob("Reporte_Licitaciones_*.xlsx"))
@@ -249,14 +266,14 @@ class AnalizadorIncremental:
         
         try:
             return pd.read_excel(archivo, sheet_name='Vigentes')
-        except:
+        except Exception:
             try:
                 return pd.read_excel(archivo)
             except Exception as e:
                 self.logger.warning(f"⚠️ Error cargando reporte anterior: {e}")
                 return pd.DataFrame()
     
-    def _comparar_licitaciones(self, datos_nuevos: pd.DataFrame, reporte_anterior: pd.DataFrame) -> Dict:
+    def _comparar_licitaciones(self, datos_nuevos: pd.DataFrame, reporte_anterior: pd.DataFrame) -> dict:
         """Compara licitaciones nuevas vs existentes"""
         
         # Identificar columna de código único
