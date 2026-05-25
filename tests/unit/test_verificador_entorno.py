@@ -4,11 +4,11 @@ Tests para src/utils/verificador_entorno.py
 Cubre: ResultadoCheck, VerificadorEntorno (todos los checks individuales
 y los métodos públicos verificar_todo / hay_errores_criticos).
 """
+from unittest.mock import patch
+
 import pytest
-from pathlib import Path
 
-from utils.verificador_entorno import VerificadorEntorno, ResultadoCheck
-
+from utils.verificador_entorno import ResultadoCheck, VerificadorEntorno
 
 # ---------------------------------------------------------------------------
 # ResultadoCheck — dataclass inmutable
@@ -100,14 +100,17 @@ class TestCheckVenv:
         assert r.ok is True
         assert r.critico is True
 
-    def test_falla_cuando_no_existe(self, tmp_path):
-        r = VerificadorEntorno(tmp_path)._check_venv()
+    def test_falla_cuando_no_activo(self, tmp_path):
+        # Simular que NO estamos dentro de un venv (prefix == base_prefix)
+        with patch("utils.verificador_entorno.sys") as mock_sys:
+            mock_sys.prefix = "/usr/local"
+            mock_sys.base_prefix = "/usr/local"
+            r = VerificadorEntorno(tmp_path)._check_venv()
         assert r.ok is False
-        assert "python -m venv" in r.mensaje
 
     def test_nombre_descriptivo(self, tmp_path):
         r = VerificadorEntorno(tmp_path)._check_venv()
-        assert "venv" in r.nombre.lower()
+        assert "entorno" in r.nombre.lower() or "venv" in r.nombre.lower()
 
 
 # ---------------------------------------------------------------------------
@@ -204,10 +207,13 @@ class TestHayErroresCriticos:
         v = VerificadorEntorno(tmp_path)
         assert v.hay_errores_criticos([]) is False
 
-    def test_true_si_venv_falta(self, tmp_path):
+    def test_true_si_venv_no_activo(self, tmp_path):
         pivot_dir = tmp_path / "config_pivot"
         pivot_dir.mkdir()
         (pivot_dir / "PIVOT_MAESTRO.xlsx").touch()
         v = VerificadorEntorno(tmp_path)
-        # .venv falta → critico
-        assert v.hay_errores_criticos(v.verificar_todo()) is True
+        # Simular que NO estamos dentro de un venv
+        with patch("utils.verificador_entorno.sys") as mock_sys:
+            mock_sys.prefix = "/usr/local"
+            mock_sys.base_prefix = "/usr/local"
+            assert v.hay_errores_criticos(v.verificar_todo()) is True

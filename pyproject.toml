@@ -4,10 +4,19 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "licitaciones-mp"
-version = "5.0.0"
-description = "Sistema de Automatización de Licitaciones Mercado Público"
+version = "6.0.0"
+description = "Sistema de Automatizacion de Licitaciones Mercado Publico"
 readme = "README.md"
 requires-python = ">=3.11"
+license = {text = "MIT"}
+authors = [{name = "Sebastian Chirino"}]
+keywords = ["licitaciones", "mercado-publico", "pipeline"]
+classifiers = [
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+]
 dependencies = [
     "pandas>=2.0.0",
     "openpyxl>=3.1.0",
@@ -15,12 +24,14 @@ dependencies = [
     "pytz>=2023.3",
     "python-dateutil>=2.8.2",
     "pydantic-settings>=2.0.0",
-    "python-dotenv>=1.0.0"
+    "python-dotenv>=1.0.0",
+    "Pillow>=10.0.0",
+    "customtkinter>=5.2.0"
 ]
 
 [project.optional-dependencies]
 dev = [
-    "pytest>=7.0",
+    "pytest>=7.4.0",
     "pytest-cov>=4.1.0",
     "ruff>=0.4.0",
     "mypy>=1.0.0",
@@ -35,14 +46,51 @@ line-length = 100
 target-version = "py311"
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "UP"]
-ignore = ["E501"]
+select = ["E", "F", "I", "UP", "B", "SIM", "DTZ", "RUF", "C4", "PTH", "PERF", "S", "TCH", "ANN"]
+ignore = [
+    "E501",    # line-too-long — handled by ruff-format
+    "DTZ005",  # datetime.now() without tz — pipeline uses local time for logs/display
+    "RUF001",  # ambiguous-unicode-character-string (Spanish: á, é, ñ, etc.)
+    "RUF002",  # ambiguous-unicode-character-docstring
+    "RUF003",  # ambiguous-unicode-character-comment
+    "ANN003",  # missing-type-kwargs — **kwargs is always Any
+    "ANN401",  # any-type — legitimate uses of Any in generic containers
+    "S603",    # subprocess-without-shell-check — not applicable
+    "S607",    # start-process-with-partial-path — not applicable
+]
+
+[tool.ruff.lint.per-file-ignores]
+"src/etapas/etapa*.py" = ["E402"]  # version import before other imports
+"run_pipeline.py" = ["E402"]
+"tests/**" = [
+    "ANN",   # tests don't need type annotations
+    "S101",  # assert is expected in tests
+    "S108",  # hardcoded temp paths (tmp_path fixtures)
+    "E402",  # module-import-not-at-top (sys.path setup in test helpers)
+    "E741",  # ambiguous variable names (test shorthand)
+    "B017",  # assert-raises-exception (test pattern)
+    "SIM117",# multiple with statements (readability in tests)
+    "RUF005",# collection concatenation (test data construction)
+    "RUF012",# mutable class defaults (test helpers)
+    "RUF043",# pytest-raises-ambiguous-pattern
+    "S110",  # try-except-pass (test cleanup)
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["core", "etapas", "utils"]
+
+[tool.ruff.format]
+quote-style = "double"
 
 [tool.pytest.ini_options]
 pythonpath = [".", "src"]
 testpaths = ["tests"]
 addopts = ["-v", "--tb=short"]
-minversion = "7.0"
+minversion = "7.4"
+filterwarnings = [
+    "ignore::DeprecationWarning",
+    "ignore::PendingDeprecationWarning"
+]
 markers = [
     "unit: tests aislados sin I/O",
     "integration: tests que leen archivos reales del proyecto",
@@ -51,9 +99,19 @@ markers = [
 
 [tool.coverage.run]
 source = ["src"]
-omit = ["*/tests/*", "*/__init__.py"]
+omit = ["tests/*", "scripts/*", "*/__init__.py"]
 
 [tool.coverage.report]
-fail_under = 80
 show_missing = true
+fail_under = 90
 skip_covered = false
+
+[tool.pyright]
+pythonVersion = "3.11"
+pythonPlatform = "Windows"
+typeCheckingMode = "basic"
+useLibraryCodeForTypes = true
+reportMissingImports = "warning"
+reportMissingModuleSource = "none"
+include = ["src", "tests"]
+extraPaths = ["src", "mp_launcher"]

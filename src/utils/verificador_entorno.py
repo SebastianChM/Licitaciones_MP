@@ -5,9 +5,9 @@ Comprueba que los archivos y configuraciones requeridos estén presentes
 antes de lanzar el pipeline, distinguiendo entre requisitos críticos
 (que bloquean la ejecución) y advertencias (que no la bloquean).
 """
+import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import List
 
 
 @dataclass(frozen=True)
@@ -33,10 +33,10 @@ class VerificadorEntorno:
       - Archivo de entrada Licitacion_Publicada.xlsx (Etapa 0 lo descarga)
     """
 
-    def __init__(self, base_dir: Path):
+    def __init__(self, base_dir: Path) -> None:
         self._base = base_dir
 
-    def verificar_todo(self) -> List[ResultadoCheck]:
+    def verificar_todo(self) -> list[ResultadoCheck]:
         """Ejecuta todas las verificaciones y retorna la lista de resultados."""
         return [
             self._check_venv(),
@@ -45,7 +45,7 @@ class VerificadorEntorno:
             self._check_input(),
         ]
 
-    def hay_errores_criticos(self, resultados: List[ResultadoCheck]) -> bool:
+    def hay_errores_criticos(self, resultados: list[ResultadoCheck]) -> bool:
         """True si algún check crítico falló."""
         return any(not r.ok and r.critico for r in resultados)
 
@@ -54,11 +54,11 @@ class VerificadorEntorno:
     # ------------------------------------------------------------------
 
     def _check_venv(self) -> ResultadoCheck:
-        ok = (self._base / ".venv").is_dir()
+        ok = sys.prefix != sys.base_prefix
         return ResultadoCheck(
-            nombre="Entorno virtual (.venv)",
+            nombre="Entorno virtual",
             ok=ok,
-            mensaje="Activo" if ok else "Faltante — ejecuta: python -m venv .venv",
+            mensaje="Activo" if ok else "No activo — abre con MP_Licitaciones.vbs",
             critico=True,
         )
 

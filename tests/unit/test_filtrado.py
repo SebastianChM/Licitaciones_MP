@@ -7,20 +7,28 @@ disco ni PIVOT_MAESTRO.
 Ejecutar con: pytest tests/unit/test_filtrado.py -v
 """
 
-import pytest
-import pandas as pd
 from unittest.mock import MagicMock
-from etapas.etapa2 import FiltradorLicitaciones
 
+import pandas as pd
+
+from core.filter_profile import EquipoInfo, FilterProfile
+from etapas.etapa2 import FiltradorLicitaciones
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
 def _etapa_con_filtros(filtros: dict) -> FiltradorLicitaciones:
-    """Instancia FiltradorLicitaciones con filtros inyectados y logger mockeado."""
+    """Instancia FiltradorLicitaciones con un FilterProfile derivado del dict legacy."""
     etapa = FiltradorLicitaciones()
-    etapa.filtros = filtros
+    equipo = EquipoInfo(codigo="TEST", nombre="Test", hoja_filtros="06-Test")
+    etapa.profile = FilterProfile(
+        equipo=equipo,
+        incluir=dict(filtros.get("incluir", {})),
+        excluir=dict(filtros.get("excluir", {})),
+        bypass=tuple(filtros.get("bypass", [])),
+        exclusion_dura=tuple(filtros.get("exclusion_dura", [])),
+    )
     # Inyectamos un logger mock para tests que no necesitan pipeline completo
     etapa._logger = MagicMock()
     return etapa

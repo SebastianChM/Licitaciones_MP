@@ -47,7 +47,10 @@ htmlcov/
 
 # Logs
 *.log
-4. DATA/2. OUTPUT/1. LOGS/*.log
+
+# Tool caches
+.mypy_cache/
+.ruff_cache/
 
 # Datos sensibles
 *.env
@@ -66,6 +69,8 @@ data/2. OUTPUT/4. ENRIQUECIDO/*.xlsx
 data/2. OUTPUT/5. PRESENTACION/**/*.xlsx
 data/2. OUTPUT/1. LOGS/*.json
 data/2. OUTPUT/1. LOGS/*.jsonl
+logs/runs/*.json
+temp/checkpoints/
 
 # Backups
 _OLD/backup_*/
@@ -73,11 +78,24 @@ _OLD/backup_*/
 *.bak
 *.bak2
 *.bak3
+*.bak_*
+
+# Archivos temporales de desarrollo (raíz)
+fix_vbs.py
+latest_run.json
+requirements.lock
+*.lnk
+icono_mp.ico
 
 # Archivos de análisis/diagnóstico temporal (raíz)
 repomix-output.xml
 coverage.xml
+pdf_output.txt
 logs/
+
+# Documentos de revisión interna (no son parte del release)
+ESTADO_PROYECTO.md
+*.pdf
 
 # Checkpoints temporales de pipeline
 temp/

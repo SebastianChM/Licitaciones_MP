@@ -8,8 +8,9 @@ Verifica la lógica de prioridad:
 Nota: Config es un modelo pydantic que bloquea patch.object en instancias para
 atributos que no son campos. Se parchea a nivel de clase para los métodos.
 """
+from unittest.mock import patch
+
 import pytest
-from unittest.mock import patch, MagicMock
 
 _PATCH_CARGAR_PIVOT = 'utils.config.Config.cargar_desde_pivot'
 
@@ -17,8 +18,8 @@ _PATCH_CARGAR_PIVOT = 'utils.config.Config.cargar_desde_pivot'
 @pytest.fixture
 def enriquecedor(config, logger_mock):
     """EnriquecedorAPI con contexto y logger mockeados."""
-    from etapas.etapa3 import EnriquecedorAPI
     from core.context import PipelineContext
+    from etapas.etapa3 import EnriquecedorAPI
     stage = EnriquecedorAPI()
     ctx = PipelineContext(config=config)
     stage._context = ctx

@@ -8,12 +8,12 @@ Cubre:
 - _cargar_parametros_pivot: carga y fallo gracioso
 - run(): flujo completo y fallo por PIVOT ausente
 """
-import pytest
-import pandas as pd
 from pathlib import Path
 from unittest.mock import patch
-from openpyxl import Workbook, load_workbook
 
+import pandas as pd
+import pytest
+from openpyxl import Workbook, load_workbook
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -44,9 +44,9 @@ def _make_licitaciones_xlsx(path: Path) -> None:
 def _stage_con_config(tmp_path, logger_mock, *, pivot=True, hallazgos=True,
                       input_dir=None):
     """Crea AuditorTaxonomia con Config apuntando a tmp_path."""
-    from utils.config import Config
     from core.context import PipelineContext
     from etapas.etapa1 import AuditorTaxonomia
+    from utils.config import Config
 
     kwargs = {"env": "testing", "PIVOT_DIR": tmp_path}
     if hallazgos:
@@ -73,8 +73,8 @@ def _stage_con_config(tmp_path, logger_mock, *, pivot=True, hallazgos=True,
 @pytest.fixture
 def etapa1(config, logger_mock):
     """AuditorTaxonomia básico con config de test global."""
-    from etapas.etapa1 import AuditorTaxonomia
     from core.context import PipelineContext
+    from etapas.etapa1 import AuditorTaxonomia
     stage = AuditorTaxonomia()
     stage._context = PipelineContext(config=config)
     stage._logger = logger_mock
@@ -89,9 +89,9 @@ def etapa1(config, logger_mock):
 class TestValidateInputs:
 
     def test_retorna_false_sin_artefacto_ni_archivo(self, tmp_path, logger_mock):
-        from utils.config import Config
         from core.context import PipelineContext
         from etapas.etapa1 import AuditorTaxonomia
+        from utils.config import Config
 
         config = Config(env="testing",
                         INPUT_DIR=tmp_path / "nonexistent_input")
@@ -109,9 +109,9 @@ class TestValidateInputs:
         assert etapa1.validate_inputs(context) is True
 
     def test_retorna_true_con_archivo_en_disco(self, tmp_path, logger_mock):
-        from utils.config import Config
         from core.context import PipelineContext
         from etapas.etapa1 import AuditorTaxonomia
+        from utils.config import Config
 
         input_dir = tmp_path / "INPUT"
         input_dir.mkdir()
@@ -159,9 +159,9 @@ class TestCargarValoresPivot:
         ws.append(["Col A", "Col B"])  # Sin encabezado válido NIVEL
         wb.save(tmp_path / "PIVOT_MAESTRO.xlsx")
 
-        from utils.config import Config
         from core.context import PipelineContext
         from etapas.etapa1 import AuditorTaxonomia
+        from utils.config import Config
 
         config = Config(env="testing", PIVOT_DIR=tmp_path)
         stage = AuditorTaxonomia()
@@ -180,9 +180,9 @@ class TestCargarValoresPivot:
         ws.append(["Servicios", None, "", None])
         wb.save(tmp_path / "PIVOT_MAESTRO.xlsx")
 
-        from utils.config import Config
         from core.context import PipelineContext
         from etapas.etapa1 import AuditorTaxonomia
+        from utils.config import Config
 
         config = Config(env="testing", PIVOT_DIR=tmp_path)
         stage = AuditorTaxonomia()
@@ -451,9 +451,9 @@ class TestRun:
 
     def test_run_retorna_failure_si_pivot_no_existe(self, tmp_path, logger_mock):
         """Si PIVOT_MAESTRO no existe debe retornar StageResult(success=False)."""
-        from utils.config import Config
         from core.context import PipelineContext
         from etapas.etapa1 import AuditorTaxonomia
+        from utils.config import Config
 
         input_dir = tmp_path / "INPUT"
         input_dir.mkdir()
@@ -480,9 +480,9 @@ class TestRun:
 
     def test_run_exitoso_sin_hallazgos(self, tmp_path, logger_mock):
         """Con todos los valores conocidos, run() tiene éxito y no genera archivo."""
-        from utils.config import Config
         from core.context import PipelineContext
         from etapas.etapa1 import AuditorTaxonomia
+        from utils.config import Config
 
         input_dir = tmp_path / "INPUT"
         input_dir.mkdir()

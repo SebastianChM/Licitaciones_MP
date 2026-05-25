@@ -3,11 +3,8 @@
 Cubre AlertSeverity, Alert, ConsoleAlertSink, FileAlertSink, AlertManager.
 """
 import json
-import pytest
-from pathlib import Path
-from unittest.mock import patch, call
-from io import StringIO
 
+import pytest
 
 # ---------------------------------------------------------------------------
 # AlertSeverity
@@ -67,7 +64,7 @@ class TestAlert:
 class TestConsoleAlertSink:
 
     def test_imprime_severity_en_output(self, capsys):
-        from utils.alerts import ConsoleAlertSink, Alert, AlertSeverity
+        from utils.alerts import Alert, AlertSeverity, ConsoleAlertSink
         sink = ConsoleAlertSink()
         a = Alert(rule_id="R1", message="algo fallo", severity=AlertSeverity.ERROR,
                   stage="etapa1")
@@ -77,7 +74,7 @@ class TestConsoleAlertSink:
         assert "algo fallo" in out
 
     def test_imprime_recomendacion_si_existe(self, capsys):
-        from utils.alerts import ConsoleAlertSink, Alert, AlertSeverity
+        from utils.alerts import Alert, AlertSeverity, ConsoleAlertSink
         sink = ConsoleAlertSink()
         a = Alert(rule_id="R2", message="aviso", severity=AlertSeverity.WARNING,
                   recommendation="Hacer X")
@@ -86,7 +83,7 @@ class TestConsoleAlertSink:
         assert "Hacer X" in out
 
     def test_info_usa_prefijo_advertencia(self, capsys):
-        from utils.alerts import ConsoleAlertSink, Alert, AlertSeverity
+        from utils.alerts import Alert, AlertSeverity, ConsoleAlertSink
         sink = ConsoleAlertSink()
         a = Alert(rule_id="R3", message="info", severity=AlertSeverity.INFO)
         sink.send(a)
@@ -102,7 +99,7 @@ class TestConsoleAlertSink:
 class TestFileAlertSink:
 
     def test_crea_archivo_en_primera_alerta(self, tmp_path):
-        from utils.alerts import FileAlertSink, Alert, AlertSeverity
+        from utils.alerts import Alert, AlertSeverity, FileAlertSink
         ruta = tmp_path / "alerts.jsonl"
         sink = FileAlertSink(ruta)
         a = Alert(rule_id="R1", message="ok", severity=AlertSeverity.INFO)
@@ -110,7 +107,7 @@ class TestFileAlertSink:
         assert ruta.exists()
 
     def test_json_valido_por_linea(self, tmp_path):
-        from utils.alerts import FileAlertSink, Alert, AlertSeverity
+        from utils.alerts import Alert, AlertSeverity, FileAlertSink
         ruta = tmp_path / "alerts.jsonl"
         sink = FileAlertSink(ruta)
         a = Alert(rule_id="R1", message="texto", severity=AlertSeverity.WARNING,
@@ -122,7 +119,7 @@ class TestFileAlertSink:
         assert data['severity'] == "WARNING"
 
     def test_multiples_alertas_multiples_lineas(self, tmp_path):
-        from utils.alerts import FileAlertSink, Alert, AlertSeverity
+        from utils.alerts import Alert, AlertSeverity, FileAlertSink
         ruta = tmp_path / "alerts.jsonl"
         sink = FileAlertSink(ruta)
         for i in range(3):
@@ -131,7 +128,7 @@ class TestFileAlertSink:
         assert len(lineas) == 3
 
     def test_crea_directorio_si_no_existe(self, tmp_path):
-        from utils.alerts import FileAlertSink, Alert, AlertSeverity
+        from utils.alerts import Alert, AlertSeverity, FileAlertSink
         ruta = tmp_path / "subdir" / "alerts.jsonl"
         sink = FileAlertSink(ruta)
         sink.send(Alert(rule_id="X", message="m", severity=AlertSeverity.INFO))
@@ -159,7 +156,7 @@ class TestAlertManager:
         assert len(mgr.get_history()) == 1
 
     def test_sink_recibe_alerta(self, tmp_path):
-        from utils.alerts import AlertManager, FileAlertSink, AlertSeverity
+        from utils.alerts import AlertManager, AlertSeverity, FileAlertSink
         ruta = tmp_path / "log.jsonl"
         mgr = AlertManager()
         mgr.add_sink(FileAlertSink(ruta))
@@ -174,7 +171,7 @@ class TestAlertManager:
         assert a.stage == "etapa0"
 
     def test_fallo_en_sink_no_propaga_excepcion(self):
-        from utils.alerts import AlertManager, AlertSeverity, AlertSink, Alert
+        from utils.alerts import Alert, AlertManager, AlertSeverity
         class SinkRoto:
             def send(self, alert: Alert):
                 raise RuntimeError("fallo de red")
@@ -186,7 +183,7 @@ class TestAlertManager:
         assert len(mgr.get_history()) == 1
 
     def test_multiples_sinks(self, tmp_path):
-        from utils.alerts import AlertManager, FileAlertSink, AlertSeverity
+        from utils.alerts import AlertManager, AlertSeverity, FileAlertSink
         ruta1 = tmp_path / "a.jsonl"
         ruta2 = tmp_path / "b.jsonl"
         mgr = AlertManager()

@@ -1,19 +1,13 @@
-# Sistema de Análisis Incremental y Sugerencias de Filtros
-# Ejecuta análisis completo de cambios y genera recomendaciones
+"""Módulo standalone de análisis incremental y sugerencias de filtros."""
 
-import sys
-from pathlib import Path
-
-# Ajustar sys.path para ejecución standalone desde raíz o desde src/
-_SRC = Path(__file__).parent
-if str(_SRC) not in sys.path:
-    sys.path.insert(0, str(_SRC))
-
-from utils import Config, AnalizadorIncremental, ProjectLogger
-from core.context import PipelineContext
-import pandas as pd
 import json
+import sys
 from datetime import datetime
+
+import pandas as pd
+
+from core.context import PipelineContext
+from utils import AnalizadorIncremental, Config, ProjectLogger
 
 
 class SistemaAnalisisIncremental:
@@ -23,7 +17,7 @@ class SistemaAnalisisIncremental:
     del pipeline, aunque opera en modo standalone (no requiere etapas previas).
     """
 
-    def __init__(self, context: PipelineContext = None):
+    def __init__(self, context: PipelineContext | None = None) -> None:
         if context is None:
             config = Config()
             context = PipelineContext(config=config)
@@ -31,10 +25,10 @@ class SistemaAnalisisIncremental:
         self.context = context
         self.config = context.config
         self.logger = ProjectLogger('sistema_incremental', self.config.LOG_DIR)
-        self.analizador = AnalizadorIncremental(self.config)
+        self.analizador = AnalizadorIncremental(self.config, logger=self.logger)
 
-    def ejecutar_analisis_completo(self):
-        """Ejecuta análisis completo del sistema"""
+    def ejecutar_analisis_completo(self) -> bool:
+        """Ejecuta análisis completo del sistema. Devuelve True si el análisis se realizó, False si no había datos."""
 
         self.logger.section("SISTEMA DE ANÁLISIS INCREMENTAL", 80)
         self.logger.info(f"RunID: {self.context.run_id}")
@@ -43,9 +37,9 @@ class SistemaAnalisisIncremental:
         try:
             # Cargar datos más recientes
             datos_actuales = self._cargar_datos_actuales()
-            if datos_actuales is None or len(datos_actuales) == 0:
+            if datos_actuales is None or datos_actuales.empty:
                 self.logger.warning("⚠️ No se encontraron datos actuales para analizar")
-                return
+                return False
             
             self.logger.info(f"📊 Datos cargados: {len(datos_actuales):,} licitaciones")
             
@@ -68,6 +62,7 @@ class SistemaAnalisisIncremental:
             self._generar_sugerencias_pivot(analisis_taxonomia)
             
             self.logger.info("✅ Análisis incremental completado exitosamente")
+            return True
             
         except Exception as e:
             self.logger.error(f"❌ Error en análisis: {e}")
@@ -75,7 +70,7 @@ class SistemaAnalisisIncremental:
         finally:
             self.logger.finalize()
     
-    def _cargar_datos_actuales(self):
+    def _cargar_datos_actuales(self) -> pd.DataFrame | None:
         """Carga los datos más actuales del pipeline"""
         
         # Intentar cargar desde licitaciones filtradas más recientes
@@ -100,7 +95,7 @@ class SistemaAnalisisIncremental:
         
         return None
     
-    def _mostrar_resultados_detallados(self, reporte: dict):
+    def _mostrar_resultados_detallados(self, reporte: dict) -> None:
         """Muestra resultados detallados del análisis"""
         
         resumen = reporte['resumen']
@@ -134,7 +129,7 @@ class SistemaAnalisisIncremental:
         self.logger.info(f"   • Para Exclusión: {sug['exclusion']} términos")
         self.logger.info("")
     
-    def _generar_sugerencias_pivot(self, analisis_taxonomia: dict):
+    def _generar_sugerencias_pivot(self, analisis_taxonomia: dict) -> None:
         """Genera archivo de sugerencias para actualizar PIVOT_MAESTRO"""
         
         sugerencias = analisis_taxonomia['sugerencias_filtros']
@@ -153,7 +148,7 @@ class SistemaAnalisisIncremental:
             'sugerencias_exclusion': sugerencias['exclusion']
         }
         
-        with open(archivo_sugerencias, 'w', encoding='utf-8') as f:
+        with archivo_sugerencias.open('w', encoding='utf-8') as f:
             json.dump(sugerencias_para_pivot, f, indent=2, ensure_ascii=False)
         
         self.logger.info(f"💾 Sugerencias guardadas: {archivo_sugerencias.name}")
@@ -170,19 +165,22 @@ class SistemaAnalisisIncremental:
                 self.logger.info(f"   {i}. '{sug['termino']}' - {sug['razon']}")
 
 
-def main():
+def main() -> int:
     """Función principal"""
     try:
         sistema = SistemaAnalisisIncremental()
-        sistema.ejecutar_analisis_completo()
-        print("\n✅ ANÁLISIS INCREMENTAL COMPLETADO")
-        print("📁 Revisa los archivos JSON generados en la carpeta de logs")
-        print("🎯 Las sugerencias de filtros están listas para aplicar al PIVOT_MAESTRO")
+        analizado = sistema.ejecutar_analisis_completo()
+        if analizado:
+            print("\n✅ ANÁLISIS INCREMENTAL COMPLETADO")
+            print("📁 Revisa los archivos JSON generados en la carpeta de logs")
+            print("🎯 Las sugerencias de filtros están listas para aplicar al PIVOT_MAESTRO")
+        else:
+            print("\n⚠️ Sin datos disponibles para analizar. Ejecuta primero las etapas 0-2 del pipeline.", file=sys.stderr)
         return 0
     except Exception as e:
-        print(f"\n❌ ERROR: {e}")
+        print(f"\n\u274c ERROR: {e}", file=sys.stderr)
         return 1
 
 
 if __name__ == "__main__":
-    exit(main())
+    sys.exit(main())

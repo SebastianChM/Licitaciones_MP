@@ -4,11 +4,10 @@ Fixtures compartidos para toda la suite de tests.
 Disponibles en tests/ y tests/unit/ sin import explícito (pytest los inyecta).
 """
 
-import pytest
-import pandas as pd
-from pathlib import Path
 from unittest.mock import MagicMock
 
+import pandas as pd
+import pytest
 
 # ---------------------------------------------------------------------------
 # Config y contexto
