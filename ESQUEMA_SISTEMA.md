@@ -7,7 +7,7 @@
 
 ## ¿Qué problema resuelve este sistema?
 
-Cada día, el Estado de Chile publica en el portal **Mercado Público** aproximadamente **12.000 licitaciones** de todo tipo: desde lápices hasta infraestructura de telecomunicaciones. Sebastian Chirino sólo puede ofertar en un pequeño subconjunto de esas licitaciones — las que corresponden a su área de negocio.
+Cada día, el Estado de Chile publica en el portal **Mercado Público** aproximadamente **12.000 licitaciones** de todo tipo: desde lápices hasta infraestructura de telecomunicaciones. Una consultora del sector tecnológico sólo puede ofertar en un pequeño subconjunto de esas licitaciones — las que corresponden a su área de negocio.
 
 **Sin el sistema:** una persona tendría que revisar manualmente esas 12.000 fichas todos los días para encontrar las ~50-100 relevantes. Eso tomaría varios días de trabajo.
 

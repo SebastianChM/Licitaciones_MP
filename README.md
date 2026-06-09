@@ -1,12 +1,12 @@
 # Licitaciones Mercado Público
 
-> Sistema automatizado que filtra y enriquece las licitaciones publicadas en el Mercado Público de Chile, reduciendo aproximadamente 12 000 licitaciones diarias a las 300 relevantes para Sebastian Chirino.
+> Sistema automatizado que filtra y enriquece las licitaciones publicadas en el Mercado Público de Chile, reduciendo aproximadamente 12 000 licitaciones diarias a las 300 relevantes según los criterios configurados.
 
 [![Python 3.11+](https://img.shields.io/badge/Python-3.11+-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
 [![Tests 501 passing](https://img.shields.io/badge/tests-501%20passing-22C55E?style=for-the-badge)](#tests)
 [![Coverage 95%](https://img.shields.io/badge/coverage-95%25-22C55E?style=for-the-badge)](#tests)
 [![Version v6.0.0](https://img.shields.io/badge/version-v6.0.0-3776AB?style=for-the-badge)](#)
-[![License Proprietary](https://img.shields.io/badge/license-proprietary-A8C95A?style=for-the-badge)](#licencia)
+[![License MIT](https://img.shields.io/badge/license-MIT-A8C95A?style=for-the-badge)](#licencia)
 
 **Plataforma:** Windows 10 / 11 con interfaz gráfica
 **Última versión:** v6.0.0
@@ -412,5 +412,5 @@ config.validar_estructura()
 
 ## Licencia
 
-Propietario. Sebastian Chirino
+MIT. Sebastian Chirino, 2026.
 Copyright (c) 2025–2026 MP. Todos los derechos reservados.
